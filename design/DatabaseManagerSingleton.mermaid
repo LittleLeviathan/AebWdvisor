@@ -1,0 +1,57 @@
+classDiagram
+    class DatabaseManager {
+        -static DatabaseManager instance
+        -HikariDataSource dataSource
+        -static String URL
+        -static String USER
+        -static String PASSWORD
+
+        -DatabaseManager()
+
+    %% Lifecycle & Setup
+        +static getInstance() DatabaseManager
+        +shutdown()
+        -initializeDatabase()
+        +seedDatabase()
+
+    %% Core Execution
+        +executeQuery(String sql, QueryHandler handler, Object[] params) T
+        +executeUpdate(String sql, Object[] params) int
+        +executeInsert(String sql, Object[] params) int
+
+        +fetchList(String sql, QueryHandler rowMapper, Object[] params) List~T~
+        +fetch(String sql, QueryHandler rowMapper, Object[] params) T
+
+    %% Object Retrieval (ORM)
+        +fetchOne(Class clazz, String idColumn, Object idValue) T
+        +fetchMany(Class clazz, String fkColumn, Object value) List~T~
+        +fetchManyToMany(Class targetClass, String joinTable, String joinCol, String invJoinCol, Object sourceId) List~T~
+        -autoMapper(Class clazz) QueryHandler~T~
+
+    %% Persistence
+        +upsertAll(List~T~ items)
+        +upsert(T item)
+        +delete(T item)
+        +deleteAll(List~T~ items)
+        -propagateGeneratedKeys(PreparedStatement pstmt, List~T~ items, List~Field~ localFields)
+
+    %% Reflection & SQL Building
+        #buildUpsertSql(String tableName, List~Field~ allColumns, List~Field~ keyColumns) String
+        #buildJoinedFromClause(Class clazz) String
+        -getTableHierarchy(Class clazz) List~Class~
+        -getAnnotatedFields(Class clazz) List~Field~
+        -getAllAnnotatedFields(Class clazz) List~Field~
+        -getIdAnnotatedFields(List~Field~ allFields) List~Field~
+        -getPrimaryIdColumnName(Class targetClass) String
+        -getPrimaryIdColumn(Class targetClass) Optional~Field~
+        -getUpsertFields(List~Field~ allFields, Class clazz) List~Field~
+        -setParameters(PreparedStatement pstmt, Object[] params)
+    }
+
+    class QueryHandler {
+        <<interface>>
+        +handle(ResultSet rs) T
+    }
+
+    DatabaseManager ..> QueryHandler : uses
+    DatabaseManager --> DatabaseManager : instance
