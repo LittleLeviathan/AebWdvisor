@@ -171,6 +171,7 @@ public class Section {
                 this.waitlist.add(waitlist);
                 return waitlist.getId();
             } catch (SQLException | IllegalAccessException e) {
+                //e.printStackTrace();
                 return 0;
             }
         }
@@ -195,7 +196,10 @@ public class Section {
         if(this.waitlist == null || this.waitlist.isEmpty()) {
             String sql = "SELECT count(*) FROM waitlist where section_id = ?;";
             return DatabaseManager.getInstance().executeQuery(sql, rs -> {
-                return rs.getInt(1);
+                if(rs.next()) {
+                    return rs.getInt(1);
+                }
+                return 0;  // default return is 0
             }, this.getId()) + 1;
         }
         return waitlist.size() + 1; // 1-based
