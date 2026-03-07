@@ -25,6 +25,11 @@ public class RegisterCommand extends BaseCommand {
     private NotificationManager notificationManager;
     private int enrollmentId;
 
+    // Adding No argument constructor needed for fromSuperType() and ORM autoMapper()
+    public RegisterCommand() {
+        this(null, null);
+    }
+
     public RegisterCommand(ObservableStudent student, Section section) {
         super();
         this.commandType = "REGISTER";
@@ -39,29 +44,27 @@ public class RegisterCommand extends BaseCommand {
 
         if (!section.hasCapacity()) {
             successful = false;
-            System.out.printf("✗ Registration failed for %s - section full%n", section.getCourseCode());
-            this.setErrorMessage(String.format("✗ Registration failed for %s - section full", section.getCourseCode()));
+            errorMessage = String.format("Registration failed for %s - section full", section.getCourseCode());
+            System.out.println("✗ " + errorMessage);
             return;
         }
 
-        // Check for schedule conflicts (simplified)
-        if (hasScheduleConflict()) {  // TODO: Should be a student schedule check
+        if (hasScheduleConflict()) {
             successful = false;
-            System.out.printf("✗ Registration failed for %s - schedule conflict%n", section.getCourseCode());
-            this.setErrorMessage(
-                    String.format("✗ Registration failed for %s - schedule conflict", section.getCourseCode()));
+            errorMessage = String.format("Registration failed for %s - schedule conflict", section.getCourseCode());
+            System.out.println("✗ " + errorMessage);
             return;
         }
 
         if ((this.enrollmentId = section.enroll(student)) > 0) {
-            executed = true;
-            successful = true;
-            System.out.printf("✓ Student %s registered for %s%n", student.getStudentId(), section.getCourseCode());
-
-            // Trigger notification
+            executed    = true;
+            successful  = true;
+            System.out.printf("✓ Student %s registered for %s%n",
+                    student.getStudentId(), section.getCourseCode());
             notificationManager.notifyRegistration(student, section.getCourseCode(), true);
         } else {
-            successful = false;
+            successful   = false;
+            errorMessage = "Already enrolled or duplicate registration prevented.";
         }
     }
 
@@ -117,17 +120,18 @@ public class RegisterCommand extends BaseCommand {
         ObjectMapper mapper = new ObjectMapper();
         try {
             Map<String, Object> data = mapper.readValue(json, Map.class);
-            // Reconstruct student, section, etc. from the data
             // TODO: Figure out if we have to really deal with studentPk because student is a subclass of  User.
             int studentPk = (int) data.get("studentPk");
+            int sectionId = (int) data.get("sectionId");
+            this.enrollmentId = (int) data.get("enrollmentId");
+
+            // Fetch as Student (annotated), then promote to ObservableStudent
             Student raw = DatabaseManager.getInstance().fetchOne(Student.class, "id", studentPk);
             if (raw != null) {
                 this.student = ObservableStudent.fromSuperType(raw);
+                this.student = ObservableStudent.fromSuperType(raw);
+                this.section = DatabaseManager.getInstance().fetchOne(Section.class, "id", sectionId);
             }
-
-            this.section = DatabaseManager.getInstance()
-                    .fetchOne(Section.class, "id", data.get("sectionId"));
-            this.enrollmentId = (int)data.get("enrollmentId");
         } catch (JsonProcessingException | SQLException e) {
             throw new RuntimeException("Failed to deserialize RegisterCommand data", e);
         }
