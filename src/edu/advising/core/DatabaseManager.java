@@ -301,6 +301,13 @@ public class DatabaseManager {
                 List<Field> keyFields = getIdAnnotatedFields(writeableFields);
 
                 String sql = buildUpsertSql(tableAnn.name(), writeableFields, keyFields);
+                /*
+                System.out.printf("""
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                        %s
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                        """, sql);
+                 */
 
                 try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                     for (T item : items) {
@@ -326,6 +333,7 @@ public class DatabaseManager {
             }
             conn.commit(); // Success!
         } catch (Exception e) {
+            //e.printStackTrace();
             conn.rollback(); // Undo everything on failure
             throw new SQLException("Transaction failed. Changes rolled back.", e);
         } finally {

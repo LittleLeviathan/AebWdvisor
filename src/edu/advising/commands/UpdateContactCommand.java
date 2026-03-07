@@ -44,6 +44,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.ObservableStudent;
+import edu.advising.users.Student;
 import edu.advising.users.User;
 
 import java.sql.SQLException;
@@ -123,7 +124,10 @@ public class UpdateContactCommand extends BaseCommand {
         //   MERGE INTO users (id, email, phone, updated_at, ...) VALUES (...)
         // Only the columns that changed will differ; the rest stay as-is.
         try {
-            dbManager.upsert(student);
+            Student copy = student.toSubType();  // Copying object so upsert hierarchy annotations work properly.
+            dbManager.upsert(copy); // Updating the copied object, realizing fields like updatedAt won't be synced.
+            //TODO: determine if other fields need to be synced as well after upsert.
+            student.setUpdatedAt(copy.getUpdatedAt()); // Syncing update at manually.
 
             executed   = true;
             successful = true;
