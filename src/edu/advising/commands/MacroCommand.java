@@ -3,10 +3,8 @@ package edu.advising.commands;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.advising.core.DatabaseManager;
-import edu.advising.notifications.ObservableStudent;
+import edu.advising.core.Table;
 
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,60 +14,69 @@ import java.util.Map;
 /**
  * MacroCommand - Executes multiple commands as one transaction
  */
+@Table(name = "command_history", isSubTable = true)
 public class MacroCommand extends BaseCommand {
     private List<BaseCommand> commands;
     private String description;
 
+    // Adding No argument constructor needed for fromSuperType() and ORM autoMapper()
+    public MacroCommand() {
+        this("Initialized Macro");
+    }
+
     public MacroCommand(String description) {
         super();
-        this.commands = new ArrayList<>();
+        this.commandType = "MACRO";
         this.description = description;
+        this.commands    = new ArrayList<>();
     }
 
     public void addCommand(BaseCommand command) {
         commands.add(command);
     }
 
+    public static MacroCommand fromSuperType(BaseCommand base) {
+        MacroCommand cmd = new MacroCommand();
+        BaseCommand.copyBaseFields(base, cmd);
+        cmd.initAfterLoad();
+        return cmd;
+    }
+
     @Override
     public void execute() {
         executionTime = LocalDateTime.now();
-        System.out.printf("▶ Executing macro: %s (%d commands)%n",
-                description, commands.size());
+        System.out.printf("▶ Executing macro: %s (%d commands)%n", description, commands.size());
 
-        boolean allSuccessful = true;
         for (BaseCommand command : commands) {
             command.execute();
             if (!command.wasSuccessful()) {
-                allSuccessful = false;
-                System.out.println("  ✗ Command failed: " + command.getDescription());
-                break;
+                System.out.println("  ✗ Sub-command failed: " + command.getDescription());
+                successful = false;
+                executed   = true;
+                System.out.println("✗ Macro failed — rolling back completed sub-commands");
+                undo();
+                return;
             }
         }
 
-        executed = true;
-        successful = allSuccessful;
-
-        if (successful) {
-            System.out.println("✓ Macro completed successfully");
-        } else {
-            System.out.println("✗ Macro failed - rolling back");
-            undo();
-        }
+        executed   = true;
+        successful = true;
+        System.out.println("✓ Macro completed successfully");
     }
 
     @Override
     public void undo() {
         if (!executed) return;
-
-        System.out.println(String.format("↶ Undoing macro: %s", description));
-
-        // Undo in reverse order
+        System.out.printf("↶ Undoing macro: %s%n", description);
+        // Undo in reverse order (i.e. only commands that actually succeeded)
         for (int i = commands.size() - 1; i >= 0; i--) {
-            BaseCommand command = commands.get(i);
-            if (command.wasSuccessful()) {
-                command.undo();
+            BaseCommand cmd = commands.get(i);
+            if (cmd.wasSuccessful()) {
+                cmd.undo();
             }
         }
+        this.undoneAt = LocalDateTime.now();
+        this.isUndone = true;
     }
 
     @Override
@@ -85,57 +92,49 @@ public class MacroCommand extends BaseCommand {
     @Override
     protected String serializeCommandData() {
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> data = new HashMap<>();
-        for(int i=0; i < this.commands.size(); i++) {
-            BaseCommand bc = this.commands.get(i);
-            data.put(bc.getClass() + "_"+i, bc.serializeCommandData());
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (int i = 0; i < commands.size(); i++) {
+            BaseCommand bc = commands.get(i);
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("type",  bc.getClass().getName());  // fully-qualified, no "class " prefix
+            entry.put("index", i);
+            entry.put("data",  bc.serializeCommandData());
+            list.add(entry);
         }
         try {
-            return mapper.writeValueAsString(data);
+            return mapper.writeValueAsString(list);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize RegisterCommand data", e);
+            throw new RuntimeException("Failed to serialize MacroCommand data", e);
         }
     }
 
     protected void deserializeCommandData(String json) {
+        if (json == null || json.isBlank()) return;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            Map<String, Object> data = mapper.readValue(json, new TypeReference<Map<String, Object>>() {});
-            this.commands = new ArrayList<>(); // Initialize the list
+            List<Map<String, Object>> list =
+                    mapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
+            this.commands = new ArrayList<>(list.size());
 
-            // Iterate over the map entries
-            for (Map.Entry<String, Object> entry : data.entrySet()) {
-                String key = entry.getKey();
-                String[] parts = key.split("_"); // Split into class name and index
-                if (parts.length < 2) continue; // Skip malformed keys
-
-                String className = parts[0]; // e.g., "class edu.advising.notifications.RegisterCommand"
-                int index = Integer.parseInt(parts[1]); // The index (e.g., 0, 1, 2...)
-
-                // Convert the value to a JSON string (if it's a LinkedHashMap from Jackson)
-                String commandDataJson = mapper.writeValueAsString(entry.getValue());
-
-                // Create the appropriate BaseCommand subclass
-                BaseCommand command = createCommandInstance(className);
-                if (command != null) {
-                    // Set the command data and deserialize
-                    command.setCommandData(commandDataJson);
-                    command.deserializeCommandData(commandDataJson);
-                    this.commands.add(command);
-                }
+            for (Map<String, Object> entry : list) {
+                String className    = (String) entry.get("type");
+                String subData      = mapper.writeValueAsString(entry.get("data"));
+                BaseCommand subCmd  = instantiateCommand(className);
+                subCmd.setCommandData(subData);
+                subCmd.initAfterLoad();
+                this.commands.add(subCmd);
             }
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize MacroBaseCommand data", e);
+            throw new RuntimeException("Failed to deserialize MacroCommand data", e);
         }
     }
 
-    // Helper method to create an instance of the correct BaseCommand subclass
-    private BaseCommand createCommandInstance(String className) {
+    private BaseCommand instantiateCommand(String className) {
         try {
             Class<?> clazz = Class.forName(className);
             return (BaseCommand) clazz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create instance of " + className, e);
+            throw new RuntimeException("Cannot instantiate command class: " + className, e);
         }
     }
 }

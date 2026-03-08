@@ -20,27 +20,20 @@ package edu.advising.commands;
 //     HOW it is undone (the undo() method)
 //
 // UNDO SEMANTICS:
-//   Undoing a payment marks the row as REFUNDED. In a real system this would
-//   also call a payment gateway refund API. The undo is only permitted within
-//   a configured window (e.g., same day / same session). After that window,
-//   a separate CancelPaymentCommand should be used (handled by staff, Week 14).
+//   Undoing a payment marks the Payment row as REFUNDED via ORM upsert().
+//   In a real system this would also call a payment gateway refund API.
 //
 // GUI INTEGRATION:
-//   // On "Submit Payment" button click:
 //   PaymentCommand cmd = new PaymentCommand(student, amount, paymentType, paymentMethod);
 //   executor.execute(cmd);
-//
-//   if (cmd.wasSuccessful()) {
-//       showReceipt(cmd.getPaymentReferenceNumber());
-//   } else {
-//       showError("Payment failed. Please try again.");
-//   }
+//   if (cmd.wasSuccessful()) showReceipt(cmd.getPaymentReferenceNumber());
 //
 // ============================================================================
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.advising.core.DatabaseManager;
+import edu.advising.core.Table;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.notifications.ObservableStudent;
 import edu.advising.users.Student;
@@ -51,10 +44,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Table(name = "command_history", isSubTable = true)
 public class PaymentCommand extends BaseCommand {
-
-    // ── State stored on the command for undo purposes ──────────────────────
-
     private ObservableStudent student;
     private BigDecimal amount;
     private String paymentType;    // TUITION, FEE, HOUSING, etc.
@@ -63,16 +54,18 @@ public class PaymentCommand extends BaseCommand {
     // Populated after execute() completes — needed for undo and receipt display.
     private Payment paymentRecord;
 
-    private final NotificationManager notificationManager;
-    private final DatabaseManager     dbManager;
+    private NotificationManager notificationManager;
+    private DatabaseManager     dbManager;
 
-    // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
+    // Constructors
+
+    public PaymentCommand() {
+        this(null, null, null, null);
+    }
 
     /**
      * @param student       The student making the payment.
-     * @param amount        Payment amount (must be > 0).
+     * @param amount        Payment amount as BigDecimal (must be > 0).
      * @param paymentType   Category: TUITION, FEE, HOUSING, etc.
      * @param paymentMethod Method: CREDIT_CARD, CHECK, CASH, ONLINE, etc.
      */
@@ -93,6 +86,13 @@ public class PaymentCommand extends BaseCommand {
         this(student, BigDecimal.valueOf(amount), paymentType, "ONLINE");
     }
 
+    public static PaymentCommand fromSuperType(BaseCommand base) {
+        PaymentCommand cmd = new PaymentCommand();
+        BaseCommand.copyBaseFields(base, cmd);
+        cmd.initAfterLoad();
+        return cmd;
+    }
+
     // -------------------------------------------------------------------------
     // Command Interface — execute()
     // -------------------------------------------------------------------------
@@ -101,7 +101,7 @@ public class PaymentCommand extends BaseCommand {
     public void execute() {
         executionTime = LocalDateTime.now();
 
-        // ── Pre-condition validation ─────────────────────────────────────────
+        // Pre-condition: amount must be positive
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             successful = false;
             errorMessage = "Payment amount must be greater than zero.";
@@ -109,7 +109,7 @@ public class PaymentCommand extends BaseCommand {
             return;
         }
 
-        // ── Build and persist the Payment entity via ORM ─────────────────────
+        // Build Payment ORM entity and persist it via upsert()
         paymentRecord = new Payment(
                 student.getId(),
                 amount,
@@ -120,8 +120,8 @@ public class PaymentCommand extends BaseCommand {
         paymentRecord.setNotes("Processed via " + paymentMethod);
 
         try {
-            // DatabaseManager.upsert() uses @Table/@Column annotations on Payment
-            // to build the INSERT ... ON DUPLICATE KEY UPDATE statement.
+            // upsert() reflects over Payment's @Table/@Column annotations and
+            // builds the MERGE statement — no hand-written SQL needed here.
             dbManager.upsert(paymentRecord);
 
             if (paymentRecord.getId() <= 0) {
@@ -129,8 +129,8 @@ public class PaymentCommand extends BaseCommand {
                 throw new IllegalStateException("Payment was saved but no ID was returned.");
             }
 
-            // ── Update the student's account balance ─────────────────────────
-            updateStudentAccountBalance(amount.negate()); // Payment reduces the balance owed
+            // Adjust the student's account balance atomically
+            updateStudentAccountBalance(amount.negate()); // payment reduces balance owed
 
             executed  = true;
             successful = true;
@@ -162,12 +162,12 @@ public class PaymentCommand extends BaseCommand {
         }
 
         try {
-            // Mark the persisted Payment record as REFUNDED.
+            // Mark the Payment entity REFUNDED and re-persist via ORM upsert()
             paymentRecord.setStatus("REFUNDED");
             dbManager.upsert(paymentRecord);
 
-            // Reverse the account balance adjustment.
-            updateStudentAccountBalance(amount); // Adds the amount back to balance owed
+            // Reverse the balance adjustment
+            updateStudentAccountBalance(amount); // adds the amount back to balance owed
 
             undoneAt = LocalDateTime.now();
             isUndone = true;
@@ -176,7 +176,8 @@ public class PaymentCommand extends BaseCommand {
                     amount, paymentType, paymentRecord.getReferenceNumber());
 
             // Notify student of the refund.
-            notificationManager.notifyPaymentReceived(student, -amount.doubleValue(), "REFUND-" + paymentType);
+            notificationManager.notifyPaymentReceived(
+                    student, -amount.doubleValue(), "REFUND-" + paymentType);
 
         } catch (SQLException | IllegalAccessException e) {
             System.err.println("✗ Failed to process refund: " + e.getMessage());
@@ -186,7 +187,7 @@ public class PaymentCommand extends BaseCommand {
     @Override
     public boolean isUndoable() {
         // Can only refund if the original payment was in this session and succeeded.
-        // In production you'd also enforce a refund window (e.g., same calendar day).
+        // In production, you'd also enforce a refund window (e.g., same calendar day).
         return executed && successful && paymentRecord != null && paymentRecord.isCompleted();
     }
 
@@ -200,7 +201,7 @@ public class PaymentCommand extends BaseCommand {
     // -------------------------------------------------------------------------
 
     /**
-     * @return the reference number for the completed payment, or null if not yet executed.
+     * Returns the reference number for receipt display after execute().
      *
      * GUI Usage:
      *   executor.execute(cmd);
@@ -218,12 +219,13 @@ public class PaymentCommand extends BaseCommand {
     protected String serializeCommandData() {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> data = new HashMap<>();
-        data.put("studentId",      student.getId());
-        data.put("amount",         amount.toPlainString());
-        data.put("paymentType",    paymentType);
-        data.put("paymentMethod",  paymentMethod);
-        // Store the generated payment record id so we can retrieve it on undo/redo
-        data.put("paymentId",      paymentRecord != null ? paymentRecord.getId() : 0);
+        data.put("studentPk",  student.getId());   // int PK
+        data.put("studentId",     student.getStudentId());                               // int PK
+        data.put("amount",        amount.toPlainString());                        // BigDecimal-safe
+        data.put("paymentType",   paymentType);
+        data.put("paymentMethod", paymentMethod);
+         // Store the generated payment record id so we can retrieve it on undo/redo
+        data.put("paymentId",     paymentRecord != null ? paymentRecord.getId() : 0);
         try {
             return mapper.writeValueAsString(data);
         } catch (JsonProcessingException e) {
@@ -233,15 +235,16 @@ public class PaymentCommand extends BaseCommand {
 
     @Override
     protected void deserializeCommandData(String json) {
+        if (json == null || json.isBlank()) return;
         ObjectMapper mapper = new ObjectMapper();
         try {
             Map<String, Object> data = mapper.readValue(json, Map.class);
 
             // Reconstruct the student by numeric pk (not the String student_id field)
-            int studentPk = (int) data.get("studentId");
-            Student rawStudent = dbManager.fetchOne(Student.class, "id", studentPk);
-            if (rawStudent != null) {
-                this.student = ObservableStudent.fromSuperType(rawStudent);
+            int studentPk = (int) data.get("studentPk");
+            Student raw   = dbManager.fetchOne(Student.class, "id", studentPk);
+            if (raw != null) {
+                this.student = ObservableStudent.fromSuperType(raw);
             }
 
             this.amount        = new BigDecimal(data.get("amount").toString());
@@ -264,28 +267,31 @@ public class PaymentCommand extends BaseCommand {
     // -------------------------------------------------------------------------
 
     /**
-     * Adjusts the student's account balance in student_accounts.
-     * A negative delta reduces balance owed (payment applied).
-     * A positive delta increases balance owed (refund reversed).
+     * Atomically adjusts the student's account balance.
      *
-     * The student_accounts table tracks: current_balance, total_payments.
-     * This method uses a SQL UPDATE rather than ORM upsert because we need
-     * an atomic increment, not a full row replace.
+     * This intentionally uses a raw SQL UPDATE (via executeUpdate) rather than
+     * an ORM upsert() because we need an atomic increment/decrement against
+     * the existing row value. upsert() would overwrite the entire row with a
+     * potentially stale in-memory value if two sessions ran concurrently.
+     * This is the one place in PaymentCommand where direct SQL is the correct
+     * and safer choice over the ORM without further ORM development.
      */
     private void updateStudentAccountBalance(BigDecimal delta) {
-        String sql = "UPDATE student_accounts " +
+        String updateSql = "UPDATE student_accounts " +
                 "SET current_balance = current_balance + ?, " +
                 "    total_payments  = total_payments  + ?, " +
                 "    last_updated    = CURRENT_TIMESTAMP " +
                 "WHERE student_id = ?";
         try {
-            int rows = dbManager.executeUpdate(sql, delta, delta.negate(), student.getId());
+            int rows = dbManager.executeUpdate(updateSql, delta, delta.negate(), student.getId());
             if (rows == 0) {
                 // Account row doesn't exist yet — create it.
-                String insert = "INSERT INTO student_accounts " +
-                        "(student_id, current_balance, total_charges, total_payments) " +
-                        "VALUES (?, ?, 0.00, ?)";
-                dbManager.executeInsert(insert, student.getId(), delta, delta.negate());
+                dbManager.executeInsert(
+                        "INSERT INTO student_accounts " +
+                                "(student_id, current_balance, total_charges, total_payments) " +
+                                "VALUES (?, ?, 0.00, ?)",
+                        student.getId(), delta, delta.negate()
+                );
             }
         } catch (SQLException e) {
             System.err.println("PaymentCommand: could not update student account — " + e.getMessage());
