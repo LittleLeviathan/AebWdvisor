@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 @Table(name = "command_history")
 public abstract class BaseCommand implements Command {
     @Id(isPrimary = true)
-    @Column(name = "id")
+    @Column(name = "id", upsertIgnore = true)
     protected int id;
     @Column(name = "user_id", foreignKey = true)
     protected int userId;
