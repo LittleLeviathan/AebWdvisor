@@ -166,11 +166,23 @@ public class Section {
         if (!isAlreadyOnWaitlist(newStudent) && !isAlreadyEnrolled(newStudent)) {
             try {
                 ensureId();
-                WaitlistEntry waitlist = new WaitlistEntry(newStudent.getId(), this.getId(), this.getNextWaitlistPosition());
+
+                WaitlistEntry waitlist = new WaitlistEntry(
+                        newStudent.getId(),
+                        this.getId(),
+                        this.getNextWaitlistPosition()
+                );
+
                 DatabaseManager.getInstance().upsert(waitlist);
                 this.waitlist.add(waitlist);
-                return waitlist.getId();
+
+                if (waitlist.getId() > 0) {
+                    return waitlist.getId();
+                }
+
+                return 1;
             } catch (SQLException | IllegalAccessException e) {
+                e.printStackTrace();
                 return 0;
             }
         }
@@ -192,20 +204,26 @@ public class Section {
     }
 
     public int getNextWaitlistPosition() throws SQLException {
-        if(this.waitlist == null || this.waitlist.isEmpty()) {
+        if (this.waitlist == null || this.waitlist.isEmpty()) {
             String sql = "SELECT count(*) FROM waitlist where section_id = ?;";
             return DatabaseManager.getInstance().executeQuery(sql, rs -> {
-                return rs.getInt(1);
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+                return 0;
             }, this.getId()) + 1;
         }
         return waitlist.size() + 1; // 1-based
     }
 
     public int getWaitlistPosition(Student student) throws SQLException {
-        if(this.waitlist == null || this.waitlist.isEmpty()) {
-            String sql = "SELECT position FROM waitlist where section_id = ? and student_id = ?;";
+        if (this.waitlist == null || this.waitlist.isEmpty()) {
+            String sql = "SELECT position FROM waitlist WHERE section_id = ? AND student_id = ?;";
             return DatabaseManager.getInstance().executeQuery(sql, rs -> {
-                return rs.getInt(1);
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+                return 0;
             }, this.getId(), student.getId());
         }
         return waitlist.stream().filter(wl -> wl.getStudentId() == student.getId())
