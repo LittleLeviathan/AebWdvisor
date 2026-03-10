@@ -34,7 +34,6 @@ public class Payment {
     @Column(name = "id", upsertIgnore = true)
     private int id;
 
-    @Id
     @Column(name = "student_id", foreignKey = true)
     private int studentId;          // FK → students(id)
 
