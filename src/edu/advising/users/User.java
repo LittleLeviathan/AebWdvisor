@@ -40,6 +40,7 @@ public class User {
     @Column(name = "id", upsertIgnore = true)
     protected int id;
 
+    @Id
     @Column(name = "username")
     protected String username;
 
@@ -49,7 +50,6 @@ public class User {
     @Column(name = "user_type")
     protected String userType;
 
-    @Id
     @Column(name = "email")
     protected String email;
 
@@ -63,7 +63,7 @@ public class User {
     protected boolean isActive;
 
     @Column(name = "last_login")
-    LocalDateTime lastLogin;
+    protected LocalDateTime lastLogin;
 
     // ★ WEEK 5 ADDITION — required by UpdateContactCommand
     // Requires: ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
@@ -117,6 +117,8 @@ public class User {
     public String getPassword()  { return password; }
     public String getFirstName() { return firstName; }
     public String getLastName()  { return lastName; }
+    public Boolean isActive() { return isActive; }
+    public LocalDateTime getLastLogin()  { return lastLogin; }
     public String getPhone()     { return phone; }      // ★ WEEK 5
     public LocalDateTime getUpdatedAt() { return updatedAt; } // ★ WEEK 5
 
@@ -134,6 +136,9 @@ public class User {
 
     // ★ WEEK 5 — needed by UpdateContactCommand.execute() and undo()
     public void setEmail(String email)            { this.email = email; }
+    public void setUserType(String userType)      { this.userType = userType; }
+    public void setActive(Boolean isActive)     { this.isActive = isActive; }
+    public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
     public void setPhone(String phone)            { this.phone = phone; }
     public void setUpdatedAt(LocalDateTime ts)    { this.updatedAt = ts; }
 }

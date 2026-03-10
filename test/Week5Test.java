@@ -685,10 +685,11 @@ public class Week5Test {
         check("9.7  after redo A: canUndo=T",                sm.canUndo());
         check("9.8  after redo A: canRedo=F",                !sm.canRedo());
 
-        sm.undo(); // put back into redo-available state
+        sm.undo();
+        // student2 is NOT enrolled here!
 
-        // A new action clears the redo stack
-        DropCommand b = new DropCommand(student2, section);
+        // new RegisterCommand for student2 instead of DropCommand that's guaranteed to fail.
+        RegisterCommand b = new RegisterCommand(student2, section);
         sm.execute(b);
         check("9.9  new action clears redo: canRedo=F",      !sm.canRedo());
         check("9.10 new action: canUndo=T",                  sm.canUndo());
@@ -696,7 +697,7 @@ public class Week5Test {
         sm.undo();
         check("9.11 after undo B: canRedo=T",                sm.canRedo());
 
-        boolean extraUndo = sm.undo(); // stack empty
+        boolean extraUndo = sm.undo(); // undoStack already empty
         check("9.12 undo on empty stack returns false",      !extraUndo);
 
         // Redo on empty stack
@@ -704,8 +705,9 @@ public class Week5Test {
         boolean extraRedo = sm.redo();
         check("9.13 redo on empty stack returns false",      !extraRedo);
 
-        // Drop student to clean up for group 10
+        // After the redo drain above, student2 is enrolled again — drop both.
         executor.execute(new DropCommand(student, section));
+        executor.execute(new DropCommand(student2, section));
     }
 
     // =========================================================================
@@ -781,7 +783,8 @@ public class Week5Test {
         // 11.1  Register into a full section
         RegisterCommand fullReg = new RegisterCommand(student, fullSection);
         executor.execute(fullReg);
-        check("11.1 register into full section fails",       !fullReg.wasSuccessful());
+        check(String.format("11.1 register into full section fails %n    %s", fullReg.getErrorMessage()),
+                !fullReg.wasSuccessful());
         check("11.2 error message populated on failure",
                 fullReg.getErrorMessage() != null && !fullReg.getErrorMessage().isEmpty());
 
@@ -790,6 +793,9 @@ public class Week5Test {
         check("11.3 undo on empty stack returns false",      !executor.undo());
 
         // 11.4  Redo with empty stack
+        // The 11.3 drain filled the redo stack as a side effect. Drain it here so
+        // that 11.4 actually tests redo() against an empty stack, which was the intent.
+        while (executor.canRedo()) executor.redo();
         check("11.4 redo on empty stack returns false",      !executor.redo());
 
         // 11.5  Negative payment amount

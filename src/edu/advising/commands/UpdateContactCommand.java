@@ -43,7 +43,9 @@ package edu.advising.commands;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.advising.core.DatabaseManager;
+import edu.advising.core.Table;
 import edu.advising.notifications.ObservableStudent;
+import edu.advising.users.Student;
 import edu.advising.users.User;
 
 import java.sql.SQLException;
@@ -51,21 +53,28 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Table(name = "command_history", isSubTable = true)
 public class UpdateContactCommand extends BaseCommand {
 
     // ── State needed for execute and undo ────────────────────────────────────
 
     private ObservableStudent student;
-    private final String newEmail;
-    private final String newPhone;
-    private final String oldEmail;    // Captured at construction for undo
-    private final String oldPhone;    // Captured at construction for undo
+    private String newEmail;
+    private String newPhone;
+    private String oldEmail;    // Captured at construction for undo
+    private String oldPhone;    // Captured at construction for undo
 
     private final DatabaseManager dbManager;
 
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
+
+    // Adding No argument constructor needed for fromSuperType() and ORM autoMapper()
+    public UpdateContactCommand() {
+        this(new ObservableStudent("", "", "", "", "", "S0000"),
+                "", "");
+    }
 
     /**
      * Capture old values at construction time, before anything is changed.
@@ -88,6 +97,13 @@ public class UpdateContactCommand extends BaseCommand {
         this.oldPhone = student.getPhone(); // Requires phone field on User — see User.java note
 
         this.dbManager = DatabaseManager.getInstance();
+    }
+
+    public static UpdateContactCommand fromSuperType(BaseCommand base) {
+        UpdateContactCommand cmd = new UpdateContactCommand();
+        BaseCommand.copyBaseFields(base, cmd);
+        cmd.initAfterLoad();
+        return cmd;
     }
 
     // -------------------------------------------------------------------------
@@ -123,7 +139,10 @@ public class UpdateContactCommand extends BaseCommand {
         //   MERGE INTO users (id, email, phone, updated_at, ...) VALUES (...)
         // Only the columns that changed will differ; the rest stay as-is.
         try {
-            dbManager.upsert(student);
+            Student copy = student.toSubType();  // Copying object so upsert hierarchy annotations work properly.
+            dbManager.upsert(copy); // Updating the copied object, realizing fields like updatedAt won't be synced.
+            //TODO: determine if other fields need to be synced as well after upsert.
+            student.setUpdatedAt(copy.getUpdatedAt()); // Syncing update at manually.
 
             executed   = true;
             successful = true;
@@ -159,12 +178,10 @@ public class UpdateContactCommand extends BaseCommand {
 
         // Then persist the restored state.
         try {
-            dbManager.upsert(student);
-
-            undoneAt = LocalDateTime.now();
-            isUndone = true;
-            System.out.printf("↶ Undone: Contact info restored for %s%n", student.getFullName());
-
+            DatabaseManager.getInstance().upsert(student.toSubType());
+            System.out.println("↶ Undone: Contact info restored for " + student.getStudentId());
+            this.undoneAt = LocalDateTime.now();
+            this.isUndone = true;
         } catch (SQLException | IllegalAccessException e) {
             // Undo failed — re-apply new values to keep in-memory state consistent with DB.
             student.setEmail(newEmail);
@@ -206,19 +223,20 @@ public class UpdateContactCommand extends BaseCommand {
 
     @Override
     protected void deserializeCommandData(String json) {
-        // Note: this command stores final fields so full reconstruction for redo
-        // would require a different approach (builder pattern). For now, deserialization
-        // is used for audit display only (CommandRecord), not for live redo.
-        // TODO: Refactor fields to non-final if cross-session redo is required.
+        if (json == null || json.isBlank()) return;
         ObjectMapper mapper = new ObjectMapper();
         try {
             Map<String, Object> data = mapper.readValue(json, Map.class);
-            // The student reference must be re-established from the session,
-            // not reconstructed here — this prevents stale object issues.
-            System.out.println("UpdateContactCommand: deserialized for audit display, student id="
-                    + data.get("studentPk"));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("UpdateContactCommand: deserialization failed", e);
+            int studentPk  = (int) data.get("studentPk");
+            this.newEmail  = (String) data.get("newEmail");
+            this.newPhone  = (String) data.get("newPhone");
+            this.oldEmail  = (String) data.get("oldEmail");
+            this.oldPhone  = (String) data.get("oldPhone");
+
+            Student raw  = DatabaseManager.getInstance().fetchOne(Student.class, "id", studentPk);
+            this.student = ObservableStudent.fromSuperType(raw);
+        } catch (JsonProcessingException | SQLException e) {
+            throw new RuntimeException("Failed to deserialize UpdateContactCommand data", e);
         }
     }
 

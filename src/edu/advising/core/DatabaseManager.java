@@ -289,49 +289,239 @@ public class DatabaseManager {
                 List<Field> localFields = getAnnotatedFields(clazz);
 
                 // If this subclass has no localFields, we can safely ignore it.
+                // This is expected for concrete commands like RegisterCommand, which carry
+                // no @Column fields of their own all persistence lives in BaseCommand.
                 if (localFields.isEmpty()) {
                     continue;
                 }
 
-                // Handle ID Generation/Exclusion logic
-                //List<Field> writeableFields = determineWriteableFields(items.get(0), localFields);
                 List<Field> writeableFields = getUpsertFields(localFields, clazz);
-
-                // List<Field> keyFields = localFields.stream().filter(f -> f.isAnnotationPresent(Id.class)).toList();
                 List<Field> keyFields = getIdAnnotatedFields(writeableFields);
 
-                String sql = buildUpsertSql(tableAnn.name(), writeableFields, keyFields);
+                if (!keyFields.isEmpty()) {
+                    // Strategy A: natural key MERGE
+                    String sql = buildUpsertSql(tableAnn.name(), writeableFields, keyFields);
 
-                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                    for (T item : items) {
-                        for (int i = 0; i < writeableFields.size(); i++) {
-                            Field f = writeableFields.get(i);
-                            Object value = f.get(item);
-
-                            if (f.getAnnotation(Column.class).nullableforeignKey() && (value == null || (int) value == 0)) {
-                                pstmt.setObject(i + 1, null); // Make sure we send a null FK
-                            } else {
-                                pstmt.setObject(i + 1, value);
+                    try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                        for (T item : items) {
+                            for (int i = 0; i < writeableFields.size(); i++) {
+                                Field f = writeableFields.get(i);
+                                Object value = f.get(item);
+                                if (f.getAnnotation(Column.class).nullableforeignKey()
+                                        && (value == null || (int) value == 0)) {
+                                    pstmt.setObject(i + 1, null);
+                                } else {
+                                    pstmt.setObject(i + 1, value);
+                                }
                             }
+                            pstmt.addBatch();
                         }
-                        pstmt.addBatch();
-                    }
-                    //System.out.printf("~~~~%n%s%n~~~~%n", pstmt.toString());
-                    pstmt.executeBatch();
+                        pstmt.executeBatch();
 
-                    // ID HAND-OFF: If this was the parent table and IDs were generated,
-                    // we must catch them and set them on the items for the next table (FK)
-                    propagateGeneratedKeys(pstmt, items, localFields);
+                        // ID HAND OFF: capture auto generated ids for FK propagation to child tables
+                        // (i.e. User.id -> Student.id).
+                        propagateGeneratedKeys(pstmt, items, localFields);
+                    }
+                } else {
+                    // Strategy B: PK only split batch
+                    // keyFields is empty, the entity has no natural key. The only possible key is the AUTO_INCREMENT
+                    // primary key, which was intentionally excluded from writeableFields by upsertIgnore=true. Route
+                    // to the INSERT/UPDATE is a split path.
+                    executePkOnlySplitBatch(conn, tableAnn.name(), localFields, writeableFields, items);
                 }
             }
             conn.commit(); // Success!
         } catch (Exception e) {
+            //e.printStackTrace();
             conn.rollback(); // Undo everything on failure
             throw new SQLException("Transaction failed. Changes rolled back.", e);
         } finally {
             conn.setAutoCommit(true);
             conn.close();
         }
+    }
+
+    /**
+     * Handles upserts for entities that have no natural key — only an AUTO_INCREMENT
+     * primary key (flagged by @Id(isPrimary=true) + @Column(upsertIgnore=true)).
+     *
+     * Why a split is necessary:
+     *   H2's MERGE INTO requires at least one KEY column. For AUTO_INCREMENT fields
+     *   we cannot include id in KEY when id=0, because H2 would INSERT with id=0
+     *   literally instead of letting AUTO_INCREMENT assign a value. So new rows and
+     *   existing rows need fundamentally different SQL.
+     *
+     *   id == 0 → new row:
+     *     INSERT INTO table (writeable_cols) VALUES (?)
+     *     DB assigns the AUTO_INCREMENT id.
+     *     propagateGeneratedKeys() reads the generated id and sets it back on the item.
+     *
+     *   id > 0 → existing row:
+     *     UPDATE table SET col=?, col=?, ... WHERE id=?
+     *     The id value is appended as the final parameter for the WHERE clause.
+     *
+     * @param conn           the active transactional connection (do not close it here)
+     * @param tableName      the target table name
+     * @param localFields    all @Column fields declared on this class level
+     *                       (used by propagateGeneratedKeys to find the autoInc field)
+     * @param writeableFields the subset of localFields that should appear in INSERT/SET
+     *                       (already excludes the upsertIgnore=true id field)
+     * @param items          the objects to persist
+     */
+    private <T> void executePkOnlySplitBatch(Connection conn,
+                                             String tableName,
+                                             List<Field> localFields,
+                                             List<Field> writeableFields,
+                                             List<T> items)
+            throws SQLException, IllegalAccessException {
+
+        // Find the AUTO_INCREMENT primary key field.
+        // It is identified by having both @Id(isPrimary=true) AND upsertIgnore=true.
+        Optional<Field> oPkField = localFields.stream()
+                .filter(f -> f.isAnnotationPresent(Id.class)
+                        && f.getAnnotation(Id.class).isPrimary()
+                        && f.getAnnotation(Column.class).upsertIgnore())
+                .findFirst();
+
+        if (oPkField.isEmpty()) {
+            // Safety net: keyFields was empty AND there's no auto increment PK.
+            // This means the entity is genuinely un-keyable, a configuration error.
+            throw new SQLException(
+                    "upsertAll: no key fields and no auto-increment primary key found "
+                            + "for table '" + tableName + "'. "
+                            + "Add @Id to at least one non-upsertIgnore field (natural key), "
+                            + "or add @Id(isPrimary=true) to the auto-increment id field.");
+        }
+
+        Field pkField = oPkField.get();
+        pkField.setAccessible(true);
+
+        // Split items into new (i.e. id=0) vs existing (i.e. id>0)
+        List<T> newItems      = new ArrayList<>();
+        List<T> existingItems = new ArrayList<>();
+
+        for (T item : items) {
+            Object pk   = pkField.get(item);
+            boolean isNew = (pk == null)
+                    || (pk instanceof Number && ((Number) pk).longValue() == 0);
+            if (isNew) newItems.add(item);
+            else       existingItems.add(item);
+        }
+
+        // INSERT new items
+        if (!newItems.isEmpty()) {
+            String insertSql = buildInsertSql(tableName, writeableFields);
+
+            try (PreparedStatement pstmt = conn.prepareStatement(
+                    insertSql, Statement.RETURN_GENERATED_KEYS)) {
+
+                for (T item : newItems) {
+                    for (int i = 0; i < writeableFields.size(); i++) {
+                        Field f      = writeableFields.get(i);
+                        Object value = f.get(item);
+                        if (f.getAnnotation(Column.class).nullableforeignKey()
+                                && (value == null || (int) value == 0)) {
+                            pstmt.setObject(i + 1, null);
+                        } else {
+                            pstmt.setObject(i + 1, value);
+                        }
+                    }
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+
+                // Capture generated ids and set them back on the Java objects.
+                // propagateGeneratedKeys searches localFields for the upsertIgnore=true
+                // field which IS the pkField so we pass localFields unchanged.
+                propagateGeneratedKeys(pstmt, newItems, localFields);
+            }
+        }
+
+        // UPDATE existing items
+        if (!existingItems.isEmpty()) {
+            String updateSql = buildUpdateByPkSql(tableName, writeableFields, pkField);
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSql)) {
+                for (T item : existingItems) {
+                    // SET parameters: all writeable fields in order
+                    for (int i = 0; i < writeableFields.size(); i++) {
+                        Field f      = writeableFields.get(i);
+                        Object value = f.get(item);
+                        if (f.getAnnotation(Column.class).nullableforeignKey()
+                                && (value == null || (int) value == 0)) {
+                            pstmt.setObject(i + 1, null);
+                        } else {
+                            pstmt.setObject(i + 1, value);
+                        }
+                    }
+                    // WHERE parameter: the primary key
+                    pstmt.setObject(writeableFields.size() + 1, pkField.get(item));
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+                // No generated keys to capture id was already set on these items.
+            }
+        }
+    }
+
+    /**
+     * Builds a plain INSERT statement (no MERGE, no ON DUPLICATE KEY).
+     * Used by executePkOnlySplitBatch for new items whose AUTO_INCREMENT id is 0.
+     *
+     * Output form:
+     *   INSERT INTO `tableName` (`col1`, `col2`, ...) VALUES (?, ?, ...)
+     *
+     * The AUTO_INCREMENT id column is intentionally absent from columns — it was
+     * excluded from writeableFields by getUpsertFields (upsertIgnore=true).
+     *
+     * @param tableName the target table
+     * @param columns   the writeable fields (already excludes upsertIgnore fields)
+     * @return parameterised INSERT SQL string
+     */
+    protected String buildInsertSql(String tableName, List<Field> columns) {
+        StringBuilder cols = new StringBuilder();
+        StringBuilder vals = new StringBuilder();
+
+        for (int i = 0; i < columns.size(); i++) {
+            cols.append(String.format("`%s`", columns.get(i).getAnnotation(Column.class).name()));
+            vals.append("?");
+            if (i < columns.size() - 1) {
+                cols.append(", ");
+                vals.append(", ");
+            }
+        }
+
+        return "INSERT INTO `" + tableName + "` (" + cols + ") VALUES (" + vals + ")";
+    }
+
+    /**
+     * Builds an UPDATE statement that matches on the primary key column.
+     * Used by executePkOnlySplitBatch for existing items whose id > 0.
+     *
+     * Output form:
+     *   UPDATE `tableName` SET `col1`=?, `col2`=?, ... WHERE `pkCol`=?
+     *
+     * The pk column value is supplied as the LAST parameter in the PreparedStatement
+     * (after all the SET values), matching the order in executePkOnlySplitBatch.
+     *
+     * @param tableName  the target table
+     * @param setColumns the fields to update (already excludes upsertIgnore fields)
+     * @param pkField    the AUTO_INCREMENT primary key field (used in WHERE clause)
+     * @return parameterised UPDATE SQL string
+     */
+    protected String buildUpdateByPkSql(String tableName, List<Field> setColumns, Field pkField) {
+        StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
+
+        for (int i = 0; i < setColumns.size(); i++) {
+            sql.append(String.format("`%s` = ?",
+                    setColumns.get(i).getAnnotation(Column.class).name()));
+            if (i < setColumns.size() - 1) sql.append(", ");
+        }
+
+        sql.append(String.format(" WHERE `%s` = ?",
+                pkField.getAnnotation(Column.class).name()));
+
+        return sql.toString();
     }
 
     protected String buildUpsertSql(String tableName, List<Field> allColumns, List<Field> keyColumns) {
