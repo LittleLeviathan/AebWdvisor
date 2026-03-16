@@ -1,4 +1,11 @@
 package edu.advising.state;
+import edu.advising.state.TranscriptRequestState;
+import edu.advising.state.PendingTranscriptState;
+import edu.advising.state.ProcessingTranscriptState;
+import edu.advising.state.ReadyTranscriptState;
+import edu.advising.state.SentTranscriptState;
+import edu.advising.state.CancelledTranscriptState;
+import edu.advising.state.FailedTranscriptState;
 
 /**
  * StateFactory - Utility Class (Week 9)
