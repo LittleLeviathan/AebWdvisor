@@ -7,6 +7,7 @@ import edu.advising.users.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import edu.advising.state.TranscriptRequest;
 
 /**
  * NotificationManager - Central notification hub (Subject implementation)
@@ -159,6 +160,19 @@ public class NotificationManager implements Subject {
         );
         notification.addMetadata("courseCode", courseCode);
         notification.addMetadata("position", String.valueOf(position));
+        notifyObservers(notification);
+    }
+    public void notifyTranscriptStatusChange(TranscriptRequest request) {
+        Notification notification = new Notification(
+                "TRANSCRIPT_STATUS",
+                String.format("Transcript request %s is now %s",
+                        request.getTrackingNumber(),
+                        request.getStatus()),
+                request.getStudentId(),
+                "MEDIUM"
+        );
+        notification.addMetadata("trackingNumber", request.getTrackingNumber());
+        notification.addMetadata("status", request.getStatus());
         notifyObservers(notification);
     }
 

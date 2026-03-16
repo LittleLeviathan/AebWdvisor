@@ -1064,6 +1064,8 @@ public class DatabaseManager {
                     "recipient_address TEXT, " +
                     "request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                     "status VARCHAR(20) NOT NULL, " +  // PENDING, PROCESSING, READY, SENT, CANCELLED, FAILED
+                    "failure_reason TEXT, " +
+                    "processed_by INT, " +
                     "tracking_number VARCHAR(50), " +
                     "fee DECIMAL(6,2), " +
                     "is_rush BOOLEAN DEFAULT FALSE, " +
