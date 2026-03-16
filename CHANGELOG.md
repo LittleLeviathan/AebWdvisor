@@ -82,3 +82,22 @@ CancelledTranscriptState.java - Concrete State Class (Week 9)
       Private constructor so it cannot be instantiated.
       Returns PENDING state for null inputs. Throws
       IllegalArgumentException for unknown status strings.
+  
+
+FIXES:
+- TranscriptRequestState.java - removed accidental "---"
+  that got pasted in at the bottom of the file, was causing
+  a build error.
+
+- FailedTranscriptState.java - added missing closing "}"
+  at the end of the file, was causing "reached end of file
+  while parsing" build error.
+
+- PendingTransactions.java - this file was created with the
+  wrong name by accident, deleted it and recreated it as
+  PendingTranscriptState.java with the correct name.
+
+- All state files physically moved into the state folder in
+  Windows File Explorer so the file locations matched the
+  package declaration "edu.advising.state" in each file.
+  This was the root cause of most of the errors we saw.
