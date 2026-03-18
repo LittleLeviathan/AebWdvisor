@@ -101,3 +101,28 @@ FIXES:
   Windows File Explorer so the file locations matched the
   package declaration "edu.advising.state" in each file.
   This was the root cause of most of the errors we saw.
+
+- TranscriptRequestContext.java - FIXED (Week 9)
+    - Removed full package path from TranscriptRequest and
+      StateFactory references inside the load() method since
+      they are all in the same package and don't need it.
+
+- StateFactory.java - FIXED (Week 9)
+    - Added imports for all state classes so it could see
+      them correctly.
+
+- Week6Test.java - Added (Week 9)
+    - Test file for State Pattern. 37 tests covering all valid
+      state transitions, cancel transitions, fail and retry,
+      illegal transitions, terminal states, StateFactory
+      mapping, loading from DB, and tracking number format.
+      All 37 tests passing.
+
+- pom.xml - MODIFIED (Week 9)
+    - Added run-week6-test execution entry so Week6Test can
+      be run with mvn exec:java@run-week6-test
+
+- PATH environment variable - FIXED (Week 9)
+    - Windows update wiped the Maven PATH variable. Re-added
+      C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1.1\
+      plugins\maven\lib\maven3\bin to user PATH variable.
