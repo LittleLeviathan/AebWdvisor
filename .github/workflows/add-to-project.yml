@@ -11,10 +11,10 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: Add to Project
       run: |
         # Set your project name
-        project_name="@THartmanOfTheRedwoods's BetterAdvisor"
+        project_name="AebWdvisor"
         # Add the issue to the project using gh
         gh issue edit ${{ github.event.issue.number }} --add-project "$project_name"
