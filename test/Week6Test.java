@@ -9,7 +9,8 @@ import edu.advising.users.UserFactory;
 // ============================================================================
 //
 // PURPOSE:
-//   Exercises the Transcript Request State Machine implemented in Week 6.
+//   Exercises the Transcript Request State Machine and Registration Period
+//   State Machine implemented in Week 6.
 //   Structured as a plain runnable main() — no JUnit required.
 //   Run it with: mvn exec:java@run-week6-test
 //
@@ -22,6 +23,11 @@ import edu.advising.users.UserFactory;
 //   GROUP 6  — StateFactory mapping (all 6 status strings + null + unknown)
 //   GROUP 7  — Load existing request from DB by ID
 //   GROUP 8  — Tracking number format (TR-XXXXXXXX)
+//   GROUP 9  — Registration Period valid state transitions
+//   GROUP 10 — Registration canRegister() and canDrop()
+//   GROUP 11 — checkAndAdvance() auto-advances state
+//   GROUP 12 — Terminal state (CLOSED blocks all transitions)
+//   GROUP 13 — StateFactory registration mapping
 //
 // ============================================================================
 
@@ -60,6 +66,11 @@ public class Week6Test {
         testStateFactory();
         testLoadFromDatabase();
         testTrackingNumberFormat();
+        testRegistrationStateTransitions();
+        testRegistrationCanRegisterAndDrop();
+        testRegistrationCheckAndAdvance();
+        testRegistrationTerminalState();
+        testRegistrationStateFactory();
 
         // ── Final report ──────────────────────────────────────────────────────
         banner("RESULTS");
@@ -100,24 +111,20 @@ public class Week6Test {
     private static void testValidTransitions() {
         header("GROUP 1 — Valid State Transitions");
 
-        // Create a new request — should start in PENDING
         TranscriptRequestContext ctx = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "MIT", "77 Mass Ave", false);
 
         check("1.1  new request starts in PENDING",
                 "PENDING".equals(ctx.getCurrentStateName()));
 
-        // PENDING → PROCESSING
         ctx.process();
         check("1.2  process() moves to PROCESSING",
                 "PROCESSING".equals(ctx.getCurrentStateName()));
 
-        // PROCESSING → READY
         ctx.prepare();
         check("1.3  prepare() moves to READY",
                 "READY".equals(ctx.getCurrentStateName()));
 
-        // READY → SENT
         ctx.dispatch();
         check("1.4  dispatch() moves to SENT",
                 "SENT".equals(ctx.getCurrentStateName()));
@@ -130,14 +137,12 @@ public class Week6Test {
     private static void testCancelTransitions() {
         header("GROUP 2 — Cancel Transitions");
 
-        // Cancel from PENDING
         TranscriptRequestContext ctx1 = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Harvard", "Cambridge MA", false);
         ctx1.cancel();
         check("2.1  cancel from PENDING moves to CANCELLED",
                 "CANCELLED".equals(ctx1.getCurrentStateName()));
 
-        // Cancel from PROCESSING
         TranscriptRequestContext ctx2 = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Harvard", "Cambridge MA", false);
         ctx2.process();
@@ -145,7 +150,6 @@ public class Week6Test {
         check("2.2  cancel from PROCESSING moves to CANCELLED",
                 "CANCELLED".equals(ctx2.getCurrentStateName()));
 
-        // Cancel from READY
         TranscriptRequestContext ctx3 = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Harvard", "Cambridge MA", false);
         ctx3.process();
@@ -166,7 +170,6 @@ public class Week6Test {
                 student.getId(), "OFFICIAL", "Stanford", "Stanford CA", false);
         ctx.process();
 
-        // PROCESSING → FAILED
         ctx.fail("Missing signature on form");
         check("3.1  fail() moves to FAILED",
                 "FAILED".equals(ctx.getCurrentStateName()));
@@ -174,7 +177,6 @@ public class Week6Test {
         check("3.2  failure reason stored on request",
                 "Missing signature on form".equals(ctx.getRequest().getFailureReason()));
 
-        // FAILED → PROCESSING via retry
         ctx.retry();
         check("3.3  retry() moves back to PROCESSING",
                 "PROCESSING".equals(ctx.getCurrentStateName()));
@@ -190,24 +192,20 @@ public class Week6Test {
     private static void testIllegalTransitions() {
         header("GROUP 4 — Illegal Transitions");
 
-        // Cannot prepare from PENDING
         TranscriptRequestContext ctx1 = TranscriptRequestContext.create(
                 student.getId(), "UNOFFICIAL", "UCLA", "Los Angeles CA", false);
         ctx1.prepare();
         check("4.1  prepare() from PENDING does not change state",
                 "PENDING".equals(ctx1.getCurrentStateName()));
 
-        // Cannot dispatch from PENDING
         ctx1.dispatch();
         check("4.2  dispatch() from PENDING does not change state",
                 "PENDING".equals(ctx1.getCurrentStateName()));
 
-        // Cannot retry from PENDING
         ctx1.retry();
         check("4.3  retry() from PENDING does not change state",
                 "PENDING".equals(ctx1.getCurrentStateName()));
 
-        // Cannot dispatch from PROCESSING
         TranscriptRequestContext ctx2 = TranscriptRequestContext.create(
                 student.getId(), "UNOFFICIAL", "UCLA", "Los Angeles CA", false);
         ctx2.process();
@@ -215,7 +213,6 @@ public class Week6Test {
         check("4.4  dispatch() from PROCESSING does not change state",
                 "PROCESSING".equals(ctx2.getCurrentStateName()));
 
-        // Cannot fail from READY
         TranscriptRequestContext ctx3 = TranscriptRequestContext.create(
                 student.getId(), "UNOFFICIAL", "UCLA", "Los Angeles CA", false);
         ctx3.process();
@@ -232,7 +229,6 @@ public class Week6Test {
     private static void testTerminalStates() {
         header("GROUP 5 — Terminal States");
 
-        // SENT blocks everything
         TranscriptRequestContext sent = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Yale", "New Haven CT", false);
         sent.process();
@@ -249,7 +245,6 @@ public class Week6Test {
         check("5.3  retry() on SENT does not change state",
                 "SENT".equals(sent.getCurrentStateName()));
 
-        // CANCELLED blocks everything
         TranscriptRequestContext cancelled = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Yale", "New Haven CT", false);
         cancelled.cancel();
@@ -285,11 +280,9 @@ public class Week6Test {
         check("6.6  FAILED maps to FailedTranscriptState",
                 StateFactory.transcriptStateFor("FAILED") instanceof FailedTranscriptState);
 
-        // Null input returns default PENDING state
         check("6.7  null input returns PendingTranscriptState",
                 StateFactory.transcriptStateFor(null) instanceof PendingTranscriptState);
 
-        // Unknown string throws IllegalArgumentException
         boolean threwException = false;
         try {
             StateFactory.transcriptStateFor("UNKNOWN_STATUS");
@@ -306,7 +299,6 @@ public class Week6Test {
     private static void testLoadFromDatabase() {
         header("GROUP 7 — Load From Database");
 
-        // Create a request and drive it to PROCESSING
         TranscriptRequestContext original = TranscriptRequestContext.create(
                 student.getId(), "OFFICIAL", "Columbia", "New York NY", false);
         original.process();
@@ -314,7 +306,6 @@ public class Week6Test {
         int id = original.getRequest().getId();
         check("7.1  request saved to DB with valid ID", id > 0);
 
-        // Load it back from DB
         TranscriptRequestContext loaded = TranscriptRequestContext.load(id);
         check("7.2  loaded request is not null", loaded != null);
         check("7.3  loaded request state is PROCESSING",
@@ -339,6 +330,165 @@ public class Week6Test {
                 tracking != null && tracking.startsWith("TR-"));
         check("8.3  tracking number is 11 characters (TR-XXXXXXXX)",
                 tracking != null && tracking.length() == 11);
+    }
+
+    // =========================================================================
+    // GROUP 9 — Registration Period Valid State Transitions
+    // =========================================================================
+
+    private static void testRegistrationStateTransitions() {
+        header("GROUP 9 — Registration Period Valid State Transitions");
+
+        RegistrationPeriodContext ctx = new RegistrationPeriodContext();
+        ctx.setState(NotOpenRegistrationState.INSTANCE);
+        ctx.open();
+        check("9.1  open() from NOT_OPEN moves to OPEN",
+                "OPEN".equals(ctx.getCurrentState().getStateName()));
+
+        ctx.transitionToLate();
+        check("9.2  transitionToLate() from OPEN moves to LATE",
+                "LATE".equals(ctx.getCurrentState().getStateName()));
+
+        ctx.close();
+        check("9.3  close() from LATE moves to CLOSED",
+                "CLOSED".equals(ctx.getCurrentState().getStateName()));
+
+        RegistrationPeriodContext ctx2 = new RegistrationPeriodContext();
+        ctx2.setState(OpenRegistrationState.INSTANCE);
+        ctx2.close();
+        check("9.4  close() from OPEN moves directly to CLOSED",
+                "CLOSED".equals(ctx2.getCurrentState().getStateName()));
+    }
+
+    // =========================================================================
+    // GROUP 10 — Registration canRegister() and canDrop()
+    // =========================================================================
+
+    private static void testRegistrationCanRegisterAndDrop() {
+        header("GROUP 10 — canRegister() and canDrop()");
+
+        RegistrationPeriodContext notOpen = new RegistrationPeriodContext();
+        notOpen.setState(NotOpenRegistrationState.INSTANCE);
+        check("10.1  canRegister() returns false from NOT_OPEN",
+                !notOpen.canRegister());
+        check("10.2  canDrop() returns false from NOT_OPEN",
+                !notOpen.canDrop());
+
+        RegistrationPeriodContext open = new RegistrationPeriodContext();
+        open.setState(OpenRegistrationState.INSTANCE);
+        check("10.3  canRegister() returns true from OPEN",
+                open.canRegister());
+        check("10.4  canDrop() returns true from OPEN",
+                open.canDrop());
+
+        RegistrationPeriodContext late = new RegistrationPeriodContext();
+        late.setState(LateRegistrationState.INSTANCE);
+        check("10.5  canRegister() returns true from LATE",
+                late.canRegister());
+        check("10.6  canDrop() returns true from LATE",
+                late.canDrop());
+
+        RegistrationPeriodContext closed = new RegistrationPeriodContext();
+        closed.setState(ClosedRegistrationState.INSTANCE);
+        check("10.7  canRegister() returns false from CLOSED",
+                !closed.canRegister());
+        check("10.8  canDrop() returns false from CLOSED",
+                !closed.canDrop());
+    }
+
+    // =========================================================================
+    // GROUP 11 — checkAndAdvance() Auto-Advances State
+    // =========================================================================
+
+    private static void testRegistrationCheckAndAdvance() {
+        header("GROUP 11 — checkAndAdvance() Auto-Advances State");
+
+        RegistrationPeriod p1 = new RegistrationPeriod();
+        p1.setOpenDate(java.time.LocalDateTime.now().minusDays(5));
+        p1.setCloseDate(java.time.LocalDateTime.now().plusDays(5));
+        p1.setLateRegistrationEnd(java.time.LocalDateTime.now().plusDays(10));
+        p1.setStatus("NOT_OPEN");
+        RegistrationPeriodContext ctx1 = new RegistrationPeriodContext();
+        ctx1.setState(NotOpenRegistrationState.INSTANCE);
+        ctx1.setPeriod(p1);
+        ctx1.checkAndAdvance();
+        check("11.1  checkAndAdvance() advances NOT_OPEN to OPEN when openDate is past",
+                "OPEN".equals(ctx1.getCurrentState().getStateName()));
+
+        RegistrationPeriod p2 = new RegistrationPeriod();
+        p2.setOpenDate(java.time.LocalDateTime.now().minusDays(10));
+        p2.setCloseDate(java.time.LocalDateTime.now().minusDays(2));
+        p2.setLateRegistrationEnd(java.time.LocalDateTime.now().plusDays(5));
+        p2.setStatus("OPEN");
+        RegistrationPeriodContext ctx2 = new RegistrationPeriodContext();
+        ctx2.setState(OpenRegistrationState.INSTANCE);
+        ctx2.setPeriod(p2);
+        ctx2.checkAndAdvance();
+        check("11.2  checkAndAdvance() advances OPEN to LATE when closeDate is past",
+                "LATE".equals(ctx2.getCurrentState().getStateName()));
+
+        RegistrationPeriod p3 = new RegistrationPeriod();
+        p3.setOpenDate(java.time.LocalDateTime.now().minusDays(15));
+        p3.setCloseDate(java.time.LocalDateTime.now().minusDays(10));
+        p3.setLateRegistrationEnd(java.time.LocalDateTime.now().minusDays(2));
+        p3.setStatus("LATE");
+        RegistrationPeriodContext ctx3 = new RegistrationPeriodContext();
+        ctx3.setState(LateRegistrationState.INSTANCE);
+        ctx3.setPeriod(p3);
+        ctx3.checkAndAdvance();
+        check("11.3  checkAndAdvance() advances LATE to CLOSED when lateRegistrationEnd is past",
+                "CLOSED".equals(ctx3.getCurrentState().getStateName()));
+    }
+
+    // =========================================================================
+    // GROUP 12 — Terminal State (CLOSED)
+    // =========================================================================
+
+    private static void testRegistrationTerminalState() {
+        header("GROUP 12 — Terminal State (CLOSED)");
+
+        RegistrationPeriodContext closed = new RegistrationPeriodContext();
+        closed.setState(ClosedRegistrationState.INSTANCE);
+
+        closed.open();
+        check("12.1  open() on CLOSED does not change state",
+                "CLOSED".equals(closed.getCurrentState().getStateName()));
+
+        closed.transitionToLate();
+        check("12.2  transitionToLate() on CLOSED does not change state",
+                "CLOSED".equals(closed.getCurrentState().getStateName()));
+
+        closed.close();
+        check("12.3  close() on CLOSED does not change state",
+                "CLOSED".equals(closed.getCurrentState().getStateName()));
+    }
+
+    // =========================================================================
+    // GROUP 13 — StateFactory Registration Mapping
+    // =========================================================================
+
+    private static void testRegistrationStateFactory() {
+        header("GROUP 13 — StateFactory Registration Mapping");
+
+        check("13.1  NOT_OPEN maps to NotOpenRegistrationState",
+                StateFactory.registrationStateFor("NOT_OPEN") instanceof NotOpenRegistrationState);
+        check("13.2  OPEN maps to OpenRegistrationState",
+                StateFactory.registrationStateFor("OPEN") instanceof OpenRegistrationState);
+        check("13.3  LATE maps to LateRegistrationState",
+                StateFactory.registrationStateFor("LATE") instanceof LateRegistrationState);
+        check("13.4  CLOSED maps to ClosedRegistrationState",
+                StateFactory.registrationStateFor("CLOSED") instanceof ClosedRegistrationState);
+
+        check("13.5  null input returns NotOpenRegistrationState",
+                StateFactory.registrationStateFor(null) instanceof NotOpenRegistrationState);
+
+        boolean threwException = false;
+        try {
+            StateFactory.registrationStateFor("UNKNOWN_STATUS");
+        } catch (IllegalArgumentException e) {
+            threwException = true;
+        }
+        check("13.6  unknown status throws IllegalArgumentException", threwException);
     }
 
     // =========================================================================

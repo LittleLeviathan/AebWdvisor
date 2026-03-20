@@ -1,4 +1,5 @@
 package edu.advising.state;
+
 import edu.advising.state.TranscriptRequestState;
 import edu.advising.state.PendingTranscriptState;
 import edu.advising.state.ProcessingTranscriptState;
@@ -36,6 +37,25 @@ public class StateFactory {
             default:
                 throw new IllegalArgumentException(
                         "Unknown transcript status: " + status);
+        }
+    }
+
+    /**
+     * Maps a registration period status string from the DB
+     * to the correct State singleton.
+     */
+    public static RegistrationPeriodState registrationStateFor(String status) {
+        if (status == null) {
+            return NotOpenRegistrationState.INSTANCE;
+        }
+        switch (status) {
+            case "NOT_OPEN": return NotOpenRegistrationState.INSTANCE;
+            case "OPEN":     return OpenRegistrationState.INSTANCE;
+            case "LATE":     return LateRegistrationState.INSTANCE;
+            case "CLOSED":   return ClosedRegistrationState.INSTANCE;
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown registration status: " + status);
         }
     }
 }

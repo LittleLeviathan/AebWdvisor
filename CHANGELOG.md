@@ -126,3 +126,75 @@ FIXES:
     - Windows update wiped the Maven PATH variable. Re-added
       C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1.1\
       plugins\maven\lib\maven3\bin to user PATH variable.
+
+
+Week 9 - Registration Period State Machine (Issue #33)
+======================================
+***working on UserStory [Registration Period State Machine].
+- RegistrationPeriodState.java - State Pattern Interface (Week 9)
+    - Defines every possible action a registration period can take.
+      Interface methods: open(), transitionToLate(), close(),
+      canRegister(), canDrop(), isOpen(), checkAndAdvance(), and
+      getStateName(). Each concrete state implements these and
+      decides what is legal vs illegal from that particular state.
+
+- RegistrationPeriod.java - ORM Entity (Week 9)
+    - Represents one row in the registration_periods table.
+      Fields: id, semester, year, openDate, closeDate,
+      lateRegistrationEnd, and status. Uses custom @Table, @Id,
+      and @Column annotations to map to the existing DB schema.
+
+- NotOpenRegistrationState.java - Concrete State Class (Week 9)
+    - Registration has not yet opened. canRegister() and canDrop()
+      return false and print a contextual message. open() transitions
+      to OPEN state. checkAndAdvance() auto-advances to OPEN if
+      wall-clock time is past openDate. Implemented as a singleton.
+
+- OpenRegistrationState.java - Concrete State Class (Week 9)
+    - Registration is open. canRegister() and canDrop() return true.
+      transitionToLate() moves to LATE state. close() moves to
+      CLOSED state. checkAndAdvance() auto-advances to LATE if
+      closeDate has passed, or CLOSED if lateRegistrationEnd has
+      passed. Implemented as a singleton.
+
+- LateRegistrationState.java - Concrete State Class (Week 9)
+    - Late registration period. canRegister() and canDrop() return
+      true but print a warning that late fees may apply. close()
+      transitions to CLOSED. checkAndAdvance() auto-advances to
+      CLOSED if lateRegistrationEnd has passed. Implemented as
+      a singleton.
+
+- ClosedRegistrationState.java - Concrete State Class (Week 9)
+    - Terminal state. Registration is closed for the semester.
+      canRegister() and canDrop() return false and print a message
+      to contact the registrar. No further transitions are possible.
+      checkAndAdvance() logs that no transitions are available.
+      Implemented as a singleton.
+
+- RegistrationPeriodContext.java - Context Class (Week 9)
+    - Wraps the RegistrationPeriod ORM entity and delegates all
+      state-dependent behavior to the current state. Factory method
+      forPeriod() loads a period from DB via raw SQL by semester
+      and year. Factory method currentPeriod() calls forPeriod()
+      then immediately calls checkAndAdvance() to auto-advance
+      state. setState() updates current state and persists status
+      string back to DB. persist() saves current status via
+      raw SQL UPDATE.
+
+- StateFactory.java - UPDATED (Week 9)
+    - Added registrationStateFor(String) method that maps all four
+      registration status strings to the correct State singleton.
+      Returns NOT_OPEN for null inputs. Throws
+      IllegalArgumentException for unknown status strings.
+
+FIXES:
+- RegistrationPeriodContext.java - FIXED (Week 9)
+    - Changed SQL column reference from "status" to "current_state"
+      to match the existing registration_periods table schema in
+      DatabaseManager.java.
+    - Wrapped "year" in backticks in all SQL statements because
+      year is a reserved keyword in H2 SQL.
+    - Changed constructor from private to public to support
+      unit testing without DB connection.
+    - Added setPeriod() method to support unit testing with
+      manually constructed RegistrationPeriod objects.
