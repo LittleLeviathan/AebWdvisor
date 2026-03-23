@@ -1,4 +1,5 @@
 package edu.advising.state;
+
 import edu.advising.state.TranscriptRequestState;
 import edu.advising.state.PendingTranscriptState;
 import edu.advising.state.ProcessingTranscriptState;
@@ -36,6 +37,44 @@ public class StateFactory {
             default:
                 throw new IllegalArgumentException(
                         "Unknown transcript status: " + status);
+        }
+    }
+    /**
+     * Maps an enrollment status string from the DB to the correct
+     * EnrollmentState singleton.
+     */
+    public static EnrollmentState enrollmentStateFor(String status) {
+        if (status == null) {
+            return PendingEnrollmentState.getInstance();
+        }
+        switch (status) {
+            case "PENDING":   return PendingEnrollmentState.getInstance();
+            case "ENROLLED":  return EnrolledState.getInstance();
+            case "DROPPED":   return DroppedState.getInstance();
+            case "WITHDRAWN": return WithdrawnState.getInstance();
+            case "COMPLETED": return CompletedState.getInstance();
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown enrollment status: " + status);
+        }
+    }
+
+    /**
+     * Maps a registration period status string from the DB
+     * to the correct State singleton.
+     */
+    public static RegistrationPeriodState registrationStateFor(String status) {
+        if (status == null) {
+            return NotOpenRegistrationState.INSTANCE;
+        }
+        switch (status) {
+            case "NOT_OPEN": return NotOpenRegistrationState.INSTANCE;
+            case "OPEN":     return OpenRegistrationState.INSTANCE;
+            case "LATE":     return LateRegistrationState.INSTANCE;
+            case "CLOSED":   return ClosedRegistrationState.INSTANCE;
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown registration status: " + status);
         }
     }
 }

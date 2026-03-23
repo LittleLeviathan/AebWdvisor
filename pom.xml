@@ -74,6 +74,16 @@
                             <classpathScope>test</classpathScope>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>run-week6-test</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>Week6Test</mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
