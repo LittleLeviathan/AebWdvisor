@@ -198,3 +198,116 @@ FIXES:
       unit testing without DB connection.
     - Added setPeriod() method to support unit testing with
       manually constructed RegistrationPeriod objects.
+
+
+Week 9 - Enrollment State Machine (Issue #32)
+======================================
+***working on UserStory [Enrollment State Machine].
+
+- EnrollmentState.java - State Pattern Interface (Week 9)
+    - Defines every possible action an enrollment can take.
+      Interface methods: confirm(), drop(reason), withdraw(),
+      complete(finalGrade), reenroll(), canDrop(), canWithdraw(),
+      canComplete(), and canReenroll(). Each concrete state
+      implements only the transitions it allows. All others
+      throw IllegalStateException via default methods.
+
+- PendingEnrollmentState.java - Concrete State Class (Week 9)
+    - Newly created enrollment awaiting confirmation. The only
+      legal transition is confirm() → ENROLLED. Fires a
+      notifyEnrollmentUpdate() notification on transition.
+      Implemented as a stateless singleton.
+
+- EnrolledState.java - Concrete State Class (Week 9)
+    - Active confirmed enrollment. Legal transitions are drop()
+      → DROPPED, withdraw() → WITHDRAWN, and complete() →
+      COMPLETED. drop() records the drop reason and timestamp.
+      withdraw() records a W final grade. complete() records
+      the final grade and fires both notifyEnrollmentUpdate()
+      and notifyGradePosted(). Guard methods canDrop(),
+      canWithdraw(), and canComplete() all return true.
+      Implemented as a stateless singleton.
+
+- DroppedState.java - Concrete State Class (Week 9)
+    - Enrollment that was actively dropped by the student. The
+      only legal transition is reenroll() → ENROLLED, but only
+      if the section still has available seats. Throws
+      IllegalStateException if section is at capacity. Clears
+      dropReason and droppedAt on re-enrollment. Guard method
+      canReenroll() returns true. Implemented as a stateless
+      singleton.
+
+- WithdrawnState.java - Concrete State Class (Week 9)
+    - Terminal state for an enrollment where the student formally
+      withdrew. A W grade has been recorded. No further
+      transitions are permitted. All guard methods return false
+      and all transition methods throw IllegalStateException
+      via inherited defaults. Implemented as a stateless
+      singleton.
+
+- CompletedState.java - Concrete State Class (Week 9)
+    - Terminal state for an enrollment where a final grade has
+      been posted and the course is finished. No further
+      transitions are permitted. All guard methods return false
+      and all transition methods throw IllegalStateException
+      via inherited defaults. Implemented as a stateless
+      singleton.
+
+- EnrollmentContext.java - Context Class (Week 9)
+    - Wraps the existing Enrollment ORM entity and delegates all
+      state-sensitive operations to the current EnrollmentState
+      singleton. Factory method create() persists a new PENDING
+      enrollment to the DB and returns a context ready to use.
+      Factory method load() loads an existing enrollment from DB
+      by id and reconstructs the correct state from the stored
+      status string. setState() updates the current state.
+      persist() saves the wrapped Enrollment via the project ORM.
+      Guard methods canDrop(), canWithdraw(), canComplete(), and
+      canReenroll() delegate to the current state for use by UI
+      to show/hide buttons without duplicating business logic.
+
+- StateFactory.java - UPDATED (Week 9)
+    - Added enrollmentStateFor(String) method that maps all five
+      enrollment status strings to the correct State singleton.
+      Handles: PENDING, ENROLLED, DROPPED, WITHDRAWN, COMPLETED.
+      Returns PendingEnrollmentState for null inputs. Throws
+      IllegalArgumentException for unknown status strings.
+
+- NotificationManager.java - UPDATED (Week 9)
+    - Added notifyEnrollmentUpdate() method that fires an
+      ENROLLMENT_UPDATE notification whenever an enrollment
+      changes status. Added notifyGradePosted() method that
+      fires a GRADE_POSTED HIGH priority notification when a
+      final grade is recorded on a completed enrollment.
+
+- RegisterCommand.java - UPDATED (Week 9)
+    - Updated execute() to use EnrollmentContext.create() and
+      ctx.confirm() instead of calling section.enroll() directly.
+      New enrollments now begin in PENDING state and transition
+      to ENROLLED through the state machine. Added import for
+      EnrollmentContext. Fixed notificationManager field to be
+      final. Fixed unchecked Map assignment warning in
+      deserializeCommandData().
+- EnrollmentContext.java - FIXED (Week 9)
+    - Made constructor public to allow unit tests to build an
+      EnrollmentContext from a manually constructed Enrollment
+      without hitting the database.
+    - Added sectionId == 0 guard to persist() so unit tests
+      skip the database save entirely when using test enrollments.
+    - Added final keyword to enrollment field.
+
+- Week6Test.java - UPDATED (Week 9)
+    - Added GROUP 14 — Enrollment valid state transitions.
+      Tests confirm(), drop(), withdraw(), and complete()
+      all transition to the correct state and record the
+      correct data.
+    - Added GROUP 15 — Enrollment guard methods. Tests all
+      four guard methods across all five states to verify
+      correct true/false returns.
+    - Added GROUP 16 — Enrollment illegal transitions. Tests
+      that illegal transitions throw IllegalStateException
+      and do not modify state.
+    - Added GROUP 17 — Enrollment StateFactory mapping. Tests
+      all five status strings plus null and unknown inputs.
+    - Updated buildEnrollment() helper to use sectionId 0
+      so tests run without a real database section.

@@ -71,6 +71,10 @@ public class Week6Test {
         testRegistrationCheckAndAdvance();
         testRegistrationTerminalState();
         testRegistrationStateFactory();
+        testEnrollmentStateTransitions();
+        testEnrollmentGuardMethods();
+        testEnrollmentIllegalTransitions();
+        testEnrollmentStateFactory();
 
         // ── Final report ──────────────────────────────────────────────────────
         banner("RESULTS");
@@ -516,5 +520,157 @@ public class Week6Test {
 
     private static void note(String text) {
         System.out.printf("  » %s%n", text);
+    }
+
+    // =========================================================================
+    // GROUP 14 — Enrollment Valid State Transitions
+    // =========================================================================
+
+    private static void testEnrollmentStateTransitions() {
+        header("GROUP 14 — Enrollment Valid State Transitions");
+
+        EnrollmentContext ctx1 = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "PENDING"));
+        ctx1.confirm();
+        check("14.1  confirm() moves PENDING → ENROLLED",
+                "ENROLLED".equals(ctx1.getEnrollment().getStatus()));
+
+        EnrollmentContext ctx2 = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "ENROLLED"));
+        ctx2.drop("schedule conflict");
+        check("14.2  drop() moves ENROLLED → DROPPED",
+                "DROPPED".equals(ctx2.getEnrollment().getStatus()));
+        check("14.3  drop reason is recorded",
+                "schedule conflict".equals(ctx2.getEnrollment().getDropReason()));
+
+        EnrollmentContext ctx3 = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "ENROLLED"));
+        ctx3.withdraw();
+        check("14.4  withdraw() moves ENROLLED → WITHDRAWN",
+                "WITHDRAWN".equals(ctx3.getEnrollment().getStatus()));
+        check("14.5  W grade recorded on withdrawal",
+                "W".equals(ctx3.getEnrollment().getFinalGrade()));
+
+        EnrollmentContext ctx4 = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "ENROLLED"));
+        ctx4.complete("A");
+        check("14.6  complete() moves ENROLLED → COMPLETED",
+                "COMPLETED".equals(ctx4.getEnrollment().getStatus()));
+        check("14.7  final grade recorded on completion",
+                "A".equals(ctx4.getEnrollment().getFinalGrade()));
+    }
+
+    // =========================================================================
+    // GROUP 15 — Enrollment Guard Methods
+    // =========================================================================
+
+    private static void testEnrollmentGuardMethods() {
+        header("GROUP 15 — Enrollment Guard Methods");
+
+        EnrollmentContext pending = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "PENDING"));
+        check("15.1  canDrop() returns false from PENDING",     !pending.canDrop());
+        check("15.2  canWithdraw() returns false from PENDING", !pending.canWithdraw());
+        check("15.3  canComplete() returns false from PENDING", !pending.canComplete());
+        check("15.4  canReenroll() returns false from PENDING", !pending.canReenroll());
+
+        EnrollmentContext enrolled = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "ENROLLED"));
+        check("15.5  canDrop() returns true from ENROLLED",      enrolled.canDrop());
+        check("15.6  canWithdraw() returns true from ENROLLED",  enrolled.canWithdraw());
+        check("15.7  canComplete() returns true from ENROLLED",  enrolled.canComplete());
+        check("15.8  canReenroll() returns false from ENROLLED", !enrolled.canReenroll());
+
+        EnrollmentContext dropped = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "DROPPED"));
+        check("15.9  canDrop() returns false from DROPPED",    !dropped.canDrop());
+        check("15.10 canReenroll() returns true from DROPPED",  dropped.canReenroll());
+
+        EnrollmentContext withdrawn = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "WITHDRAWN"));
+        check("15.11 canDrop() returns false from WITHDRAWN",    !withdrawn.canDrop());
+        check("15.12 canReenroll() returns false from WITHDRAWN",!withdrawn.canReenroll());
+
+        EnrollmentContext completed = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "COMPLETED"));
+        check("15.13 canDrop() returns false from COMPLETED",    !completed.canDrop());
+        check("15.14 canComplete() returns false from COMPLETED",!completed.canComplete());
+    }
+
+    // =========================================================================
+    // GROUP 16 — Enrollment Illegal Transitions
+    // =========================================================================
+
+    private static void testEnrollmentIllegalTransitions() {
+        header("GROUP 16 — Enrollment Illegal Transitions");
+
+        EnrollmentContext withdrawn = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "WITHDRAWN"));
+        String stateBefore = withdrawn.getEnrollment().getStatus();
+        try { withdrawn.drop("attempt"); } catch (IllegalStateException e) { /* expected */ }
+        check("16.1  drop() on WITHDRAWN does not change state",
+                stateBefore.equals(withdrawn.getEnrollment().getStatus()));
+
+        EnrollmentContext completed = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "COMPLETED"));
+        String stateBefore2 = completed.getEnrollment().getStatus();
+        try { completed.drop("attempt"); } catch (IllegalStateException e) { /* expected */ }
+        check("16.2  drop() on COMPLETED does not change state",
+                stateBefore2.equals(completed.getEnrollment().getStatus()));
+
+        EnrollmentContext enrolled = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "ENROLLED"));
+        String stateBefore3 = enrolled.getEnrollment().getStatus();
+        try { enrolled.confirm(); } catch (IllegalStateException e) { /* expected */ }
+        check("16.3  confirm() on ENROLLED does not change state",
+                stateBefore3.equals(enrolled.getEnrollment().getStatus()));
+
+        EnrollmentContext pending = new EnrollmentContext(
+                buildEnrollment(student.getId(), 0, "PENDING"));
+        boolean threw = false;
+        try { pending.drop("attempt"); } catch (IllegalStateException e) { threw = true; }
+        check("16.4  drop() on PENDING throws IllegalStateException", threw);
+    }
+
+    // =========================================================================
+    // GROUP 17 — Enrollment StateFactory Mapping
+    // =========================================================================
+
+    private static void testEnrollmentStateFactory() {
+        header("GROUP 17 — Enrollment StateFactory Mapping");
+
+        check("17.1  PENDING maps to PendingEnrollmentState",
+                StateFactory.enrollmentStateFor("PENDING") instanceof PendingEnrollmentState);
+        check("17.2  ENROLLED maps to EnrolledState",
+                StateFactory.enrollmentStateFor("ENROLLED") instanceof EnrolledState);
+        check("17.3  DROPPED maps to DroppedState",
+                StateFactory.enrollmentStateFor("DROPPED") instanceof DroppedState);
+        check("17.4  WITHDRAWN maps to WithdrawnState",
+                StateFactory.enrollmentStateFor("WITHDRAWN") instanceof WithdrawnState);
+        check("17.5  COMPLETED maps to CompletedState",
+                StateFactory.enrollmentStateFor("COMPLETED") instanceof CompletedState);
+
+        check("17.6  null input returns PendingEnrollmentState",
+                StateFactory.enrollmentStateFor(null) instanceof PendingEnrollmentState);
+
+        boolean threw = false;
+        try {
+            StateFactory.enrollmentStateFor("UNKNOWN_STATUS");
+        } catch (IllegalArgumentException e) {
+            threw = true;
+        }
+        check("17.7  unknown status throws IllegalArgumentException", threw);
+    }
+
+    // =========================================================================
+    // HELPER — Build a test Enrollment without hitting the DB
+    // =========================================================================
+
+    private static edu.advising.commands.Enrollment buildEnrollment(
+            int studentId, int sectionId, String status) {
+        edu.advising.commands.Enrollment e =
+                new edu.advising.commands.Enrollment(studentId, sectionId);
+        e.setStatus(status);
+        return e;
     }
 }

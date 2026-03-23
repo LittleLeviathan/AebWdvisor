@@ -39,6 +39,25 @@ public class StateFactory {
                         "Unknown transcript status: " + status);
         }
     }
+    /**
+     * Maps an enrollment status string from the DB to the correct
+     * EnrollmentState singleton.
+     */
+    public static EnrollmentState enrollmentStateFor(String status) {
+        if (status == null) {
+            return PendingEnrollmentState.getInstance();
+        }
+        switch (status) {
+            case "PENDING":   return PendingEnrollmentState.getInstance();
+            case "ENROLLED":  return EnrolledState.getInstance();
+            case "DROPPED":   return DroppedState.getInstance();
+            case "WITHDRAWN": return WithdrawnState.getInstance();
+            case "COMPLETED": return CompletedState.getInstance();
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown enrollment status: " + status);
+        }
+    }
 
     /**
      * Maps a registration period status string from the DB
