@@ -58,4 +58,18 @@ public class StateFactory {
                         "Unknown registration status: " + status);
         }
     }
+
+    public static WaitlistState waitlistStateFor(String status){
+        if (status == null){
+            return ActiveWaitlistState.getInstance();
+        }
+        switch (status){
+            case "ACTIVE": return ActiveWaitlistState.getInstance();
+            case "OFFERED": return OfferedWaitlistState.getInstance();
+            case "ENROLLED": return EnrolledFromWaitlistState.getInstance();
+            case "REMOVED": return RemovedWaitlistState.getInstance();
+            case "EXPIRED": return ExpiredWaitlistSate.getInstance();
+            default: throw new IllegalArgumentException("Unknown waitlist status: " + status);
+        }
+    }
 }
