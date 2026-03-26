@@ -1,4 +1,4 @@
-package edu.advising.state.facultyWailtlistPermissons;
+package edu.advising.state.facultyWaitlistPermissions;
 
 import edu.advising.core.Table;
 import edu.advising.core.Column;
@@ -6,6 +6,11 @@ import edu.advising.core.Id;
 
 import java.time.LocalDateTime;
 
+/**
+ * FacultyPermisson - ORM Entity (Week 9)
+ * Maps to the 'faculty_permissions' table in the database.
+ * Each field below is a column in that table.
+ */
 @Table(name = "faculty_permissions")
 public class FacultyPermission {
 

@@ -1,6 +1,7 @@
 import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.state.*;
+import edu.advising.state.facultyWaitlistPermissions.FacultyPermission;
 import edu.advising.users.Student;
 import edu.advising.users.UserFactory;
 
@@ -47,7 +48,7 @@ public class Week6Test {
     // ENTRY POINT
     // =========================================================================
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         banner("WEEK 6 — STATE PATTERN  |  BetterAdvisor Test Suite");
 
         try {
@@ -75,6 +76,7 @@ public class Week6Test {
         testEnrollmentGuardMethods();
         testEnrollmentIllegalTransitions();
         testEnrollmentStateFactory();
+        testFacultyPermissionORM();
 
         // ── Final report ──────────────────────────────────────────────────────
         banner("RESULTS");
@@ -672,5 +674,74 @@ public class Week6Test {
                 new edu.advising.commands.Enrollment(studentId, sectionId);
         e.setStatus(status);
         return e;
+    }
+
+    // ============================================================================
+    // GROUP 18 — FacultyPermission ORM: create, persist, and reload from DB
+    // ============================================================================
+
+    private static void testFacultyPermissionORM() throws Exception {
+        header("FacultyPermission ORM (create → save → load)");
+        
+        // ── Prerequisite seed rows ──────────────────────────────────────────────
+        // Insert a minimal user (faculty), student row, and section so the FK
+        // constraints on faculty_permissions are satisfied.
+
+        int facultyUserId = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_faculty_test", "pw", "FACULTY", "Test", "Faculty", "fp_faculty@test.edu");
+
+        db.executeInsert(
+                "INSERT INTO faculty (id, employee_id, department) VALUES (?, ?, ?)",
+                facultyUserId, "EMP-FP-01", "CS");
+
+        int studentUserId = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_student_test", "pw", "STUDENT", "Test", "Student", "fp_student@test.edu");
+
+        db.executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                studentUserId, "S-FP-01", 3.0);
+
+        // Grab any existing course/department, or insert minimal ones
+        int deptId = db.executeInsert(
+                "INSERT INTO departments (code, name) VALUES (?, ?)",
+                "FP_DEPT", "FP Test Dept");
+
+        int courseId = db.executeInsert(
+                "INSERT INTO courses (code, name, credits, department_id) VALUES (?, ?, ?, ?)",
+                "FP-101", "FP Test Course", 3, deptId);
+
+        int sectionId = db.executeInsert(
+                "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                courseId, "001", "FALL", 2025, 30, 30, facultyUserId, "OPEN");
+
+        // ── Create ───────────────────────────────────────────────────────────────
+        FacultyPermission fp = new FacultyPermission(studentUserId, sectionId, facultyUserId);
+
+        check("18-1: initial status is REQUESTED", "REQUESTED".equals(fp.getStatus()));
+
+        long diffMinutes = java.time.Duration.between(fp.getRequestDate(), fp.getExpiryDate()).toMinutes();
+        check("18-2: expiryDate is 48 hours after requestDate", diffMinutes >= 2879 && diffMinutes <= 2881);
+
+        // ── Persist ──────────────────────────────────────────────────────────────
+        db.upsert(fp);
+
+        check("18-3: upsert assigned a generated id", fp.getId() > 0);
+
+        // ── Reload ───────────────────────────────────────────────────────────────
+        FacultyPermission loaded = db.fetchOne(FacultyPermission.class, "id", fp.getId());
+
+        check("18-4: fetchOne returned a non-null row",         loaded != null);
+        check("18-5: loaded status is REQUESTED",               loaded != null && "REQUESTED".equals(loaded.getStatus()));
+        check("18-6: loaded FK ids match saved values",         loaded != null && loaded.getStudentId() == studentUserId
+                && loaded.getSectionId() == sectionId
+                && loaded.getFacultyId() == facultyUserId);
+        check("18-7: loaded requestDate matches saved value",   loaded != null
+                && loaded.getRequestDate() != null
+                && loaded.getRequestDate().getMinute() == fp.getRequestDate().getMinute());
     }
 }
