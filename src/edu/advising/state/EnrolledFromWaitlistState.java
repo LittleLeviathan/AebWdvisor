@@ -11,6 +11,10 @@ public class EnrolledFromWaitlistState implements WaitlistState {
     public static EnrolledFromWaitlistState getInstance(){
         return INSTANCE;
     }
+    public String getName(){
+
+        return "ENROLLED";
+    }
 
     @Override
     public void offer(WaitlistContext context) {

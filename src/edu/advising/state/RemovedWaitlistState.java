@@ -12,6 +12,10 @@ public class RemovedWaitlistState implements WaitlistState {
         return INSTANCE;
     }
 
+    public String getName(){
+        return "REMOVED";
+    }
+
     @Override
     public void offer(WaitlistContext context) {
 

@@ -12,6 +12,10 @@ public class OfferedWaitlistState implements WaitlistState {
         return INSTANCE;
     }
 
+    public String getName(){
+        return "OFFERED";
+    }
+
     @Override
     public void offer(WaitlistContext context) {
 

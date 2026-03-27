@@ -8,4 +8,5 @@ public interface WaitlistState {
     void remove (WaitlistContext context);
     void expire (WaitlistContext context);
     boolean isActivelyWaiting();
+    string getName();
 }

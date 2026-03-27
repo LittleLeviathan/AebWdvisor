@@ -11,6 +11,10 @@ public class ExpiredWaitlistSate implements WaitlistState {
     public static ExpiredWaitlistSate getInstance(){
         return INSTANCE;
     }
+    public String getName(){
+
+        return "EXPIRED";
+    }
 
     @Override
     public void offer(WaitlistContext context) {

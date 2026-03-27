@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.time.LocalDateTime;
+
 public class ActiveWaitlistState implements WaitlistState {
 
     private static final ActiveWaitlistState INSTANCE = new ActiveWaitlistState();
@@ -11,9 +13,14 @@ public class ActiveWaitlistState implements WaitlistState {
     public static ActiveWaitlistState getInstance(){
         return INSTANCE;
     }
+    public String getName(){
+
+        return "ACTIVE";
+    }
 
     @Override
-    public void offer(WaitlistContext context) {
+    public void offer(WaitlistContext context, LocalDateTime expiryHours) {
+        INSTANCE.setState(OfferedWaitlistState.getInstance());
 
     }
 
