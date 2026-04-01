@@ -1,12 +1,12 @@
 package edu.advising.state.facultyWaitlistPermissions;
 
 public interface FacultyPermissionState {
-    public void approve();
-    public void deny();
-    public void expire();
-    public void resubmit();
-    public void revoke();
-    public boolean isValid();
+    void approve();
+    void deny(String reason);
+    void expire();
+    void resubmit();
+    void revoke(String reason);
+    boolean isValid();
 
-    public String getStateName();
+    String getStateName();
 }

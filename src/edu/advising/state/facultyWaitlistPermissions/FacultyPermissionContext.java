@@ -29,16 +29,9 @@ public class FacultyPermissionContext {
         if (permission == null) {
             throw new SQLException("FacultyPermission not found for id: " + permissionId);
         }
-        // Load the correct State from the permission's status
         FacultyPermissionContext ctx = new FacultyPermissionContext(permission);
-        ctx.setState(
-                StateFactory.permissionStateFor(
-                        permission.getStatus()
-                )
-        );
-        //if (ctx.isExpiredByTime()) {
-        //    ctx.expire();
-        //}
+        ctx.checkAndAdvance();
+        ctx.persist();
         return ctx;
     }
 
@@ -58,20 +51,40 @@ public class FacultyPermissionContext {
         }
     }
 
-    public void approve(){}
-    public void deny(String reason){}
-    public void expire(){}
-    public void resubmit(){}
-    public void revoke(){}
+    public void approve(){
+        state.approve();
+    }
+    public void deny(String reason){
+        state.deny(reason);
+    }
+    public void expire(){
+        state.expire();
+    }
+    public void resubmit(){
+        state.resubmit();
+    }
+    public void revoke(String reason){
+        state.revoke(reason);
+    }
 
     public boolean isValid(){
         return state.isValid();
+    }
+
+    /**
+     * Checks if the permission has passed its expiryDate and advances
+     * to EXPIRED if so. Should be called before using the permission
+     * to make a registration decision.
+     */
+    public void checkAndAdvance() {
+        if (isExpiredByTime()) {
+            expire();
+        }
     }
     /**
      * Returns true if the permission is APPROVED and the current time is past expiryDate.
      */
     public boolean isExpiredByTime() {
-        return state.isValid()
-                && LocalDateTime.now().isAfter(permission.getExpiryDate());
+        return isValid() && LocalDateTime.now().isAfter(permission.getExpiryDate());
     }
 }

@@ -12,7 +12,7 @@ public class FacultyPermissionApprovedState implements FacultyPermissionState {
     }
 
     @Override
-    public void deny() {
+    public void deny(String reason) {
 
     }
 
@@ -27,7 +27,7 @@ public class FacultyPermissionApprovedState implements FacultyPermissionState {
     }
 
     @Override
-    public void revoke() {
+    public void revoke(String reason) {
 
     }
 
