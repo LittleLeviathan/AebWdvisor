@@ -7,6 +7,7 @@ import edu.advising.users.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import edu.advising.state.TranscriptRequest;
 
 /**
  * NotificationManager - Central notification hub (Subject implementation)
@@ -159,6 +160,52 @@ public class NotificationManager implements Subject {
         );
         notification.addMetadata("courseCode", courseCode);
         notification.addMetadata("position", String.valueOf(position));
+        notifyObservers(notification);
+    }
+    /**
+     * Fires a notification when an enrollment changes status
+     * (e.g. PENDING→ENROLLED, ENROLLED→DROPPED, etc.)
+     */
+    public void notifyEnrollmentUpdate(edu.advising.commands.Enrollment enrollment) {
+        Notification notification = new Notification(
+                "ENROLLMENT_UPDATE",
+                String.format("Enrollment %d status changed to %s",
+                        enrollment.getId(), enrollment.getStatus()),
+                enrollment.getStudentId(),
+                "MEDIUM"
+        );
+        notification.addMetadata("enrollmentId", String.valueOf(enrollment.getId()));
+        notification.addMetadata("status", enrollment.getStatus());
+        notifyObservers(notification);
+    }
+
+    /**
+     * Fires a notification when a final grade is posted
+     * for a completed enrollment.
+     */
+    public void notifyGradePosted(edu.advising.commands.Enrollment enrollment) {
+        Notification notification = new Notification(
+                "GRADE_POSTED",
+                String.format("Final grade posted for enrollment %d: %s",
+                        enrollment.getId(), enrollment.getFinalGrade()),
+                enrollment.getStudentId(),
+                "HIGH"
+        );
+        notification.addMetadata("enrollmentId", String.valueOf(enrollment.getId()));
+        notification.addMetadata("finalGrade", enrollment.getFinalGrade());
+        notifyObservers(notification);
+    }
+    public void notifyTranscriptStatusChange(TranscriptRequest request) {
+        Notification notification = new Notification(
+                "TRANSCRIPT_STATUS",
+                String.format("Transcript request %s is now %s",
+                        request.getTrackingNumber(),
+                        request.getStatus()),
+                request.getStudentId(),
+                "MEDIUM"
+        );
+        notification.addMetadata("trackingNumber", request.getTrackingNumber());
+        notification.addMetadata("status", request.getStatus());
         notifyObservers(notification);
     }
 

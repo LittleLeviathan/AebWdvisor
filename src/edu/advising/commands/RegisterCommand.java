@@ -5,6 +5,7 @@ import edu.advising.core.DatabaseManager;
 import edu.advising.core.Table;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.notifications.ObservableStudent;
+import edu.advising.state.EnrollmentContext;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -22,7 +23,7 @@ import java.util.Map;
 public class RegisterCommand extends BaseCommand {
     private ObservableStudent student;
     private Section section;
-    private NotificationManager notificationManager;
+    private final NotificationManager notificationManager;
     private int enrollmentId;
 
     // Adding No argument constructor needed for fromSuperType() and ORM autoMapper()
@@ -56,15 +57,19 @@ public class RegisterCommand extends BaseCommand {
             return;
         }
 
-        if ((this.enrollmentId = section.enroll(student)) > 0) {
-            executed    = true;
-            successful  = true;
+        try {
+            EnrollmentContext ctx = EnrollmentContext.create(
+                    student.getId(), section.getId());
+            ctx.confirm();
+            this.enrollmentId = ctx.getEnrollment().getId();
+            executed   = true;
+            successful = true;
             System.out.printf("✓ Student %s registered for %s%n",
                     student.getStudentId(), section.getCourseCode());
             notificationManager.notifyRegistration(student, section.getCourseCode(), true);
-        } else {
+        } catch (Exception e) {
             successful   = false;
-            errorMessage = "Already enrolled or duplicate registration prevented.";
+            errorMessage = "Registration failed: " + e.getMessage();
         }
     }
 
@@ -104,9 +109,9 @@ public class RegisterCommand extends BaseCommand {
     protected String serializeCommandData() {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> data = new HashMap<>();
-        data.put("studentPk", student.getId());    //TODO: I'm not sure this is needed since my ORM handles sub-classes.
+        data.put("studentPk", student.getId());
         data.put("studentId", student.getStudentId());
-        data.put("sectionId", section.getId()); // Assuming Section has an id
+        data.put("sectionId", section.getId());
         data.put("enrollmentId", enrollmentId);
         try {
             return mapper.writeValueAsString(data);
@@ -119,16 +124,13 @@ public class RegisterCommand extends BaseCommand {
     protected void deserializeCommandData(String json) {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            Map<String, Object> data = mapper.readValue(json, Map.class);
-            // TODO: Figure out if we have to really deal with studentPk because student is a subclass of  User.
+            Map<String, Object> data = mapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>(){});
             int studentPk = (int) data.get("studentPk");
             int sectionId = (int) data.get("sectionId");
             this.enrollmentId = (int) data.get("enrollmentId");
 
-            // Fetch as Student (annotated), then promote to ObservableStudent
             Student raw = DatabaseManager.getInstance().fetchOne(Student.class, "id", studentPk);
             if (raw != null) {
-                this.student = ObservableStudent.fromSuperType(raw);
                 this.student = ObservableStudent.fromSuperType(raw);
                 this.section = DatabaseManager.getInstance().fetchOne(Section.class, "id", sectionId);
             }
