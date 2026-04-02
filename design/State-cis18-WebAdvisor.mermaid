@@ -1,0 +1,107 @@
+classDiagram
+    class ViewState {
+        <<interface>>
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class ViewContext {
+        -currentState ViewState
+        -history Deque~ViewState~
+        -currentUser User
+        +start()
+        +navigateTo(state ViewState)
+        +back()
+        +logout()
+        +handleAction(action String, args String[])
+        +render()
+    }
+
+    class GuestViewState {
+        <<singleton>>
+        +INSTANCE GuestViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class StudentDashboardViewState {
+        <<singleton>>
+        +INSTANCE StudentDashboardViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class FacultyDashboardViewState {
+        <<singleton>>
+        +INSTANCE FacultyDashboardViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class RegistrationViewState {
+        <<singleton>>
+        +INSTANCE RegistrationViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class TranscriptViewState {
+        <<singleton>>
+        +INSTANCE TranscriptViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class PermissionManagementViewState {
+        <<singleton>>
+        +INSTANCE PermissionManagementViewState$
+        +enter(context ViewContext)
+        +exit(context ViewContext)
+        +render()
+        +handleAction(action String, args String[])
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    class LoginViewState {
+        <<singleton>>
+        +INSTANCE LoginViewState$
+        +getViewName() String
+        +requiresAuthentication() boolean
+    }
+
+    ViewState <|.. GuestViewState
+    ViewState <|.. StudentDashboardViewState
+    ViewState <|.. FacultyDashboardViewState
+    ViewState <|.. RegistrationViewState
+    ViewState <|.. TranscriptViewState
+    ViewState <|.. PermissionManagementViewState
+    ViewState <|.. LoginViewState
+    ViewContext --> ViewState
+    GuestViewState ..> AuthenticationContext
+    RegistrationViewState ..> RegistrationPeriodContext
+    PermissionManagementViewState ..> FacultyPermissionContext
