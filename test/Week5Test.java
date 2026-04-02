@@ -160,7 +160,8 @@ public class Week5Test {
         note("FullSection: " + fullSection.getCourseCode() + " (capacity=1, pre-filled)");
 
         // One executor scoped to the primary student's session
-        executor = new CommandExecutor(student.getId());
+        CommandExecutor.init(student.getId());
+        executor = CommandExecutor.getInstance();
         note("setUp() complete\n");
     }
 
@@ -300,7 +301,8 @@ public class Week5Test {
         check("3.4  duplicate waitlist wasSuccessful() = false", !dup.wasSuccessful());
 
         // Second student joins at position 2
-        CommandExecutor exec2 = new CommandExecutor(student2.getId());
+        CommandExecutor.init(student2.getId());
+        CommandExecutor exec2 = CommandExecutor.getInstance();
         WaitlistCommand wl2 = new WaitlistCommand(student2, fullSection);
         exec2.execute(wl2);
         check("3.5  student2 waitlist wasSuccessful()",      wl2.wasSuccessful());
@@ -542,7 +544,8 @@ public class Week5Test {
         executor.execute(new RegisterCommand(student, section));
         check("7.pre student enrolled for faculty-drop",     section.getEnrolled() == 1);
 
-        CommandExecutor facExec = new CommandExecutor(faculty.getId());
+        CommandExecutor.init(faculty.getId());
+        CommandExecutor facExec = CommandExecutor.getInstance();
         FacultyDropCommand facDrop = new FacultyDropCommand(faculty, student, section, "NO_SHOW");
         facExec.execute(facDrop);
 
@@ -570,7 +573,8 @@ public class Week5Test {
                     "FACULTY", "stranger.prof", "Password1!",
                     "stranger@college.edu", "Tom", "Strange", "E999", "MATH");
             FacultyDropCommand unauth = new FacultyDropCommand(stranger, student, section, "OTHER");
-            new CommandExecutor(stranger.getId()).execute(unauth);
+            CommandExecutor.init(stranger.getId());
+            CommandExecutor.getInstance().execute(unauth);
             check("7.5  wrong faculty drop rejected",        !unauth.wasSuccessful());
         } catch (Exception e) {
             fail("7.5  wrong-faculty test threw: " + e.getMessage());
@@ -605,7 +609,8 @@ public class Week5Test {
         executor.execute(wlPre);
         check("8.pre student on waitlist",                   wlPre.wasSuccessful());
 
-        CommandExecutor facExec = new CommandExecutor(faculty.getId());
+        CommandExecutor.init(faculty.getId());
+        CommandExecutor facExec = CommandExecutor.getInstance();
         GrantWaitlistPermissionCommand grant = new GrantWaitlistPermissionCommand(
                 faculty, student, fullSection, "Prereq waived by advisor");
         facExec.execute(grant);
@@ -663,7 +668,8 @@ public class Week5Test {
         header("GROUP 9 — CommandHistory State Machine");
 
         // Fresh executor for isolated state
-        CommandExecutor sm = new CommandExecutor(student.getId());
+        CommandExecutor.init(student.getId());
+        CommandExecutor sm = CommandExecutor.getInstance();
 
         check("9.1  initial canUndo() = false",              !sm.canUndo());
         check("9.2  initial canRedo() = false",              !sm.canRedo());
