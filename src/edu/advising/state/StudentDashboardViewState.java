@@ -19,7 +19,7 @@ public class StudentDashboardViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: implement
+        System.out.println("[StudentDashboardViewState] Welcome to your Student Dashboard.");
     }
 
     /**
@@ -28,7 +28,7 @@ public class StudentDashboardViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: implement
+        System.out.println("[StudentDashboardViewState] Leaving Student Dashboard.");
     }
 
     /**
@@ -38,7 +38,8 @@ public class StudentDashboardViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: implement
+        System.out.println("=== Student Dashboard ===");
+        System.out.println("Available actions: NAVIGATE REGISTRATION, NAVIGATE TRANSCRIPT, LOGOUT");
     }
 
     /**
@@ -53,7 +54,23 @@ public class StudentDashboardViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: implement
+        switch (action) {
+            case "NAVIGATE":
+                if (args.length > 0 && "REGISTRATION".equals(args[0])) {
+                    context.navigateTo(RegistrationViewState.INSTANCE);
+                } else if (args.length > 0 && "TRANSCRIPT".equals(args[0])) {
+                    context.navigateTo(TranscriptViewState.INSTANCE);
+                } else {
+                    System.out.println("[StudentDashboardViewState] Unknown navigation target: " + (args.length > 0 ? args[0] : "none"));
+                }
+                break;
+            case "LOGOUT":
+                context.logout();
+                break;
+            default:
+                System.out.println("[StudentDashboardViewState] Unknown action: " + action);
+                break;
+        }
     }
 
     /**

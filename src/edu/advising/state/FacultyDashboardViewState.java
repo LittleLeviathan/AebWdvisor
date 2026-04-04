@@ -19,7 +19,7 @@ public class FacultyDashboardViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: implement
+        System.out.println("[FacultyDashboardViewState] Welcome to your Faculty Dashboard.");
     }
 
     /**
@@ -28,7 +28,7 @@ public class FacultyDashboardViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: implement
+        System.out.println("[FacultyDashboardViewState] Leaving Faculty Dashboard.");
     }
 
     /**
@@ -38,7 +38,8 @@ public class FacultyDashboardViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: implement
+        System.out.println("=== Faculty Dashboard ===");
+        System.out.println("Available actions: NAVIGATE PERMISSIONS, LOGOUT");
     }
 
     /**
@@ -51,7 +52,21 @@ public class FacultyDashboardViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: implement
+        switch (action) {
+            case "NAVIGATE":
+                if (args.length > 0 && "PERMISSIONS".equals(args[0])) {
+                    context.navigateTo(PermissionManagementViewState.INSTANCE);
+                } else {
+                    System.out.println("[FacultyDashboardViewState] Unknown navigation target: " + (args.length > 0 ? args[0] : "none"));
+                }
+                break;
+            case "LOGOUT":
+                context.logout();
+                break;
+            default:
+                System.out.println("[FacultyDashboardViewState] Unknown action: " + action);
+                break;
+        }
     }
 
     /**

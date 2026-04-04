@@ -19,7 +19,7 @@ public class RegistrationViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: implement
+        System.out.println("[RegistrationViewState] Navigating to Registration.");
     }
 
     /**
@@ -28,7 +28,7 @@ public class RegistrationViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: implement
+        System.out.println("[RegistrationViewState] Leaving Registration.");
     }
 
     /**
@@ -38,7 +38,8 @@ public class RegistrationViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: implement
+        System.out.println("=== Registration ===");
+        System.out.println("Available actions: CHECK_STATUS <semester> <year>, BACK, LOGOUT");
     }
 
     /**
@@ -55,7 +56,28 @@ public class RegistrationViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: implement
+        switch (action) {
+            case "CHECK_STATUS":
+                if (args.length >= 2) {
+                    String semester = args[0];
+                    int year = Integer.parseInt(args[1]);
+                    RegistrationPeriodContext regCtx = RegistrationPeriodContext.currentPeriod(semester, year);
+                    System.out.println("Registration status for " + semester + " " + year + ": "
+                            + regCtx.getCurrentState().getStateName());
+                } else {
+                    System.out.println("[RegistrationViewState] CHECK_STATUS requires semester and year.");
+                }
+                break;
+            case "BACK":
+                context.back();
+                break;
+            case "LOGOUT":
+                context.logout();
+                break;
+            default:
+                System.out.println("[RegistrationViewState] Unknown action: " + action);
+                break;
+        }
     }
 
     /**

@@ -77,4 +77,24 @@ public class StateFactory {
                         "Unknown registration status: " + status);
         }
     }
+    /**
+     * Maps a view name string to the correct ViewState singleton.
+     */
+    public static ViewState viewStateFor(String viewName) {
+        if (viewName == null) {
+            return GuestViewState.INSTANCE;
+        }
+        switch (viewName) {
+            case "GUEST":                 return GuestViewState.INSTANCE;
+            case "LOGIN":                 return LoginViewState.INSTANCE;
+            case "STUDENT_DASHBOARD":     return StudentDashboardViewState.INSTANCE;
+            case "FACULTY_DASHBOARD":     return FacultyDashboardViewState.INSTANCE;
+            case "REGISTRATION":          return RegistrationViewState.INSTANCE;
+            case "TRANSCRIPT":            return TranscriptViewState.INSTANCE;
+            case "PERMISSION_MANAGEMENT": return PermissionManagementViewState.INSTANCE;
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown view name: " + viewName);
+        }
+    }
 }

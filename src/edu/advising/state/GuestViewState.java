@@ -23,7 +23,7 @@ public class GuestViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: implement
+        System.out.println("[GuestViewState] Navigating to Guest/Login screen.");
     }
 
     /**
@@ -32,7 +32,7 @@ public class GuestViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: implement
+        System.out.println("[GuestViewState] Leaving Guest screen.");
     }
 
     /**
@@ -42,7 +42,8 @@ public class GuestViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: implement
+        System.out.println("=== Welcome to BetterAdvisor ===");
+        System.out.println("Available actions: LOGIN, EXIT");
     }
 
     /**
@@ -60,9 +61,34 @@ public class GuestViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: implement
+        switch (action) {
+            case "LOGIN":
+                String username = args[0];
+                String password = args[1];
+                String ip = args[2];
+                AuthenticationResult result = context.getAuthContext().login(username, password, ip);
+                if (result.isFullyAuthenticated()) {
+                    context.setCurrentUser(result.getUser());
+                    String userType = result.getUser().getUserType();
+                    if ("STUDENT".equals(userType)) {
+                        context.navigateToWithoutHistory(StudentDashboardViewState.INSTANCE);
+                    } else if ("FACULTY".equals(userType)) {
+                        context.navigateToWithoutHistory(FacultyDashboardViewState.INSTANCE);
+                    } else {
+                        System.out.println("Unknown user type: " + userType);
+                    }
+                } else {
+                    System.out.println("Login failed: " + result.getMessage());
+                }
+                break;
+            case "LOGOUT":
+                System.out.println("[GuestViewState] Already on guest screen.");
+                break;
+            default:
+                System.out.println("[GuestViewState] Unknown action: " + action);
+                break;
+        }
     }
-
     /**
      * Returns the name of this view
      */

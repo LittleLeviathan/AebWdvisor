@@ -20,7 +20,7 @@ public class LoginViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: delegate to GuestViewState.INSTANCE.enter(context)
+        GuestViewState.INSTANCE.enter(context);
     }
 
     /**
@@ -28,7 +28,7 @@ public class LoginViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: delegate to GuestViewState.INSTANCE.exit(context)
+        GuestViewState.INSTANCE.exit(context);
     }
 
     /**
@@ -36,7 +36,7 @@ public class LoginViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: delegate to GuestViewState.INSTANCE.render()
+        GuestViewState.INSTANCE.render();
     }
 
     /**
@@ -44,7 +44,7 @@ public class LoginViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: delegate to GuestViewState.INSTANCE.handleAction(context, action, args)
+        GuestViewState.INSTANCE.handleAction(context, action, args);
     }
 
     /**

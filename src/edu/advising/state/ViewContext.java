@@ -31,7 +31,9 @@ public class ViewContext {
      * - Call render() to show the guest screen
      */
     public void start() {
-        // TODO: implement
+        currentState = GuestViewState.INSTANCE;
+        currentState.enter(this);
+        currentState.render();
     }
 
     /**
@@ -45,7 +47,17 @@ public class ViewContext {
      * - Call render() on the new state
      */
     public void navigateTo(ViewState newState) {
-        // TODO: implement
+        if (newState.requiresAuthentication() && currentUser == null) {
+            navigateTo(GuestViewState.INSTANCE);
+            return;
+        }
+        if (currentState != null) {
+            currentState.exit(this);
+            history.push(currentState);
+        }
+        currentState = newState;
+        currentState.enter(this);
+        currentState.render();
     }
 
     /**
@@ -58,7 +70,15 @@ public class ViewContext {
      * - Call render() on the previous state
      */
     public void back() {
-        // TODO: implement
+        if (history.isEmpty()) {
+            System.out.println("No previous view to go back to.");
+            return;
+        }
+        ViewState previous = history.pop();
+        currentState.exit(this);
+        currentState = previous;
+        currentState.enter(this);
+        currentState.render();
     }
 
     /**
@@ -68,7 +88,14 @@ public class ViewContext {
      * - Navigate to GuestViewState.INSTANCE
      */
     public void logout() {
-        // TODO: implement
+        currentUser = null;
+        history.clear();
+        if (currentState != null) {
+            currentState.exit(this);
+        }
+        currentState = GuestViewState.INSTANCE;
+        currentState.enter(this);
+        currentState.render();
     }
 
     /**
@@ -76,7 +103,7 @@ public class ViewContext {
      * - Call currentState.handleAction() with the action and args
      */
     public void handleAction(String action, String... args) {
-        // TODO: implement
+        currentState.handleAction(this, action, args);
     }
 
     /**
@@ -84,7 +111,19 @@ public class ViewContext {
      * - Call currentState.render()
      */
     public void render() {
-        // TODO: implement
+        currentState.render();
+    }
+    /**
+     * Navigates to a new state without pushing current state to history.
+     * Used for login transitions so GuestViewState doesn't end up in history.
+     */
+    public void navigateToWithoutHistory(ViewState newState) {
+        if (currentState != null) {
+            currentState.exit(this);
+        }
+        currentState = newState;
+        currentState.enter(this);
+        currentState.render();
     }
 
     // ----------------------------------------------------------------

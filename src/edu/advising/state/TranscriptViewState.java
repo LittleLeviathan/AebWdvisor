@@ -19,7 +19,7 @@ public class TranscriptViewState implements ViewState {
      */
     @Override
     public void enter(ViewContext context) {
-        // TODO: implement
+        System.out.println("[TranscriptViewState] Navigating to Transcript.");
     }
 
     /**
@@ -28,7 +28,7 @@ public class TranscriptViewState implements ViewState {
      */
     @Override
     public void exit(ViewContext context) {
-        // TODO: implement
+        System.out.println("[TranscriptViewState] Leaving Transcript.");
     }
 
     /**
@@ -38,7 +38,8 @@ public class TranscriptViewState implements ViewState {
      */
     @Override
     public void render() {
-        // TODO: implement
+        System.out.println("=== Transcript ===");
+        System.out.println("Available actions: BACK, LOGOUT");
     }
 
     /**
@@ -51,7 +52,17 @@ public class TranscriptViewState implements ViewState {
      */
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-        // TODO: implement
+        switch (action) {
+            case "BACK":
+                context.back();
+                break;
+            case "LOGOUT":
+                context.logout();
+                break;
+            default:
+                System.out.println("[TranscriptViewState] Unknown action: " + action);
+                break;
+        }
     }
 
     /**
