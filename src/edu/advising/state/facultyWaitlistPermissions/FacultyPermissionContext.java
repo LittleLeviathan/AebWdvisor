@@ -16,8 +16,11 @@ public class FacultyPermissionContext {
         this.state = StateFactory.permissionStateFor( permission.getStatus() );
     }
 
-    public static FacultyPermissionContext create(int studentId, int sectionId, int facultyId){
-        return new FacultyPermissionContext(new FacultyPermission(studentId, sectionId, facultyId));
+    public static FacultyPermissionContext create(int studentId, int sectionId, int facultyId) {
+        FacultyPermissionContext ctx = new FacultyPermissionContext(
+                new FacultyPermission(studentId, sectionId, facultyId));
+        ctx.persist();
+        return ctx;
     }
     /**
      * Loads an existing FacultyPermission from the database by id,
@@ -31,13 +34,16 @@ public class FacultyPermissionContext {
         }
         FacultyPermissionContext ctx = new FacultyPermissionContext(permission);
         ctx.checkAndAdvance();
-        ctx.persist();
         return ctx;
     }
 
+    // Getters and setters //
     public void setState(FacultyPermissionState state){
         permission.setStatus( state.getStateName() );
         this.state = state;
+    }
+    public FacultyPermission getPermission(){
+        return permission;
     }
     /**
      * Saves the current state of the wrapped FacultyPermission entity to the database.
@@ -51,21 +57,11 @@ public class FacultyPermissionContext {
         }
     }
 
-    public void approve(){
-        state.approve();
-    }
-    public void deny(String reason){
-        state.deny(reason);
-    }
-    public void expire(){
-        state.expire();
-    }
-    public void resubmit(){
-        state.resubmit();
-    }
-    public void revoke(String reason){
-        state.revoke(reason);
-    }
+    public void approve(){ state.approve(this); }
+    public void deny(String reason){ state.deny(this, reason); }
+    public void expire(){ state.expire(this); }
+    public void resubmit(){ state.resubmit(this); }
+    public void revoke(String reason){ state.revoke(this, reason); }
 
     public boolean isValid(){
         return state.isValid();

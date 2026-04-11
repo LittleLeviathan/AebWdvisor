@@ -44,6 +44,9 @@ public class RegisterCommand extends BaseCommand {
         executionTime = LocalDateTime.now();
 
         if (!section.hasCapacity()) {
+            // check if student has a valid faculty permission for this section
+            // (a real implementation would look up the permission by studentId + sectionId)
+            // for now, registration fails as before
             successful = false;
             errorMessage = String.format("Registration failed for %s - section full", section.getCourseCode());
             System.out.println("✗ " + errorMessage);
