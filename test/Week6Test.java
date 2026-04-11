@@ -59,17 +59,6 @@ public class Week6Test {
     private static int fpStudentId;
     private static int fpSectionId;
 
-    static {
-        try {
-            fpFacultyId = createFacultyUser();
-            fpStudentId = createStudentUser();
-            fpSectionId = createSection(fpFacultyId);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
     // =========================================================================
     // ENTRY POINT
     // =========================================================================
@@ -137,6 +126,11 @@ public class Week6Test {
                 "STUDENT", "jsmith", "Password1!",
                 "jsmith@college.edu", "Jane", "Smith", "S10001");
         student = raw;
+
+        fpFacultyId = createFacultyUser();
+        fpStudentId = createStudentUser();
+        fpSectionId = createSection(fpFacultyId);
+
         note("Student: " + student.getFullName() + " (id=" + student.getId() + ")");
         note("setUp() complete\n");
     }
