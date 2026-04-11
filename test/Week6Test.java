@@ -5,6 +5,8 @@ import edu.advising.state.facultyWaitlistPermissions.*;
 import edu.advising.users.Student;
 import edu.advising.users.UserFactory;
 
+import java.sql.SQLException;
+
 // ============================================================================
 // WEEK 6: STATE PATTERN — Integration Test Application
 // ============================================================================
@@ -52,6 +54,21 @@ public class Week6Test {
     private static NotificationManager notificationManager;
     private static UserFactory userFactory;
     private static Student student;
+
+    private static int fpFacultyId;
+    private static int fpStudentId;
+    private static int fpSectionId;
+
+    static {
+        try {
+            fpFacultyId = createFacultyUser();
+            fpStudentId = createStudentUser();
+            fpSectionId = createSection(fpFacultyId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     // =========================================================================
     // ENTRY POINT
@@ -979,6 +996,43 @@ public class Week6Test {
 // ============================================================================
 
     private static FacultyPermission buildPermission() {
-        return new FacultyPermission(0, 0, 0); // sectionId=0 skips persist()
+        return new FacultyPermission(fpStudentId , fpSectionId, fpFacultyId);
     }
+    private static int createFacultyUser() throws SQLException {
+        int facultyUserId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_unit_faculty", "pw", "FACULTY", "Test", "Faculty", "fp_unit_faculty@test.edu");
+
+        DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO faculty (id, employee_id, department) VALUES (?, ?, ?)",
+                facultyUserId, "EMP-UNIT-01", "CS");
+
+        return facultyUserId;
+    }
+    private static int createStudentUser() throws SQLException {
+        int studentUserId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_unit_student", "pw", "STUDENT", "Test", "Student", "fp_unit_student@test.edu");
+        DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                studentUserId, "S-UNIT-01", 3.0);
+        return studentUserId;
+    }
+    private static int createSection(int facultyId) throws SQLException {
+        int deptId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO departments (code, name) VALUES (?, ?)",
+                "UNIT_DEPT", "Unit Test Dept");
+
+        int courseId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO courses (code, name, credits, department_id) VALUES (?, ?, ?, ?)",
+                "UNIT-101", "Unit Test Course", 3, deptId);
+
+        return DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                courseId, "001", "FALL", 2025, 30, 30, facultyId, "OPEN");
+    }
+
 }
