@@ -18,27 +18,30 @@ public class ExpiredWaitlistSate implements WaitlistState {
 
     @Override
     public void offer(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot offer seat, window to register has already expired.");
+    }
+    public void offer(WaitlistContext context, long expiryHours) {
+        System.out.println("ERROR: Cannot offer seat, window to register has already expired.");
     }
 
     @Override
     public void accept(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot accept seat offer, window to register has already expired.");
     }
 
     @Override
     public void decline(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot decline seat offer, window to register has already expired.");
     }
 
     @Override
-    public void remove(WaitlistContext context) {
-
+    public void remove(WaitlistContext context, String Reason) {
+        System.out.println("ERROR: Cannot remove, window to register has already expired.");
     }
 
     @Override
     public void expire(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot expire, window to register has already expired.");
     }
 
     @Override

@@ -18,27 +18,30 @@ public class RemovedWaitlistState implements WaitlistState {
 
     @Override
     public void offer(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot offer seat, already removed from waitlist.");
+    }
+    public void offer(WaitlistContext context, long expiryHours) {
+        System.out.println("ERROR: Cannot offer seat, already removed from waitlist.");
     }
 
     @Override
     public void accept(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot accept seat offer, already removed from waitlist.");
     }
 
     @Override
     public void decline(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot decline seat offer, already removed from waitlist.");
     }
 
     @Override
-    public void remove(WaitlistContext context) {
-
+    public void remove(WaitlistContext context, String reason) {
+        System.out.println("ERROR: Cannot remove from waitlist, already removed from waitlist.");
     }
 
     @Override
     public void expire(WaitlistContext context) {
-
+        System.out.println("ERROR: Cannot expire, already removed from waitlist.");
     }
 
     @Override
