@@ -3,6 +3,11 @@ package edu.advising.state;
 import edu.advising.commands.CommandExecutor;
 import edu.advising.commands.RegisterCommand;
 import edu.advising.commands.Section;
+import edu.advising.commands.WaitlistEntry;
+import edu.advising.notifications.ObservableStudent;
+import edu.advising.users.Student;
+
+import java.sql.SQLException;
 
 public class OfferedWaitlistState implements WaitlistState {
 
@@ -30,6 +35,19 @@ public class OfferedWaitlistState implements WaitlistState {
 
     @Override
     public void accept(WaitlistContext context) {
+        WaitlistEntry entry = context.entry;
+        Section section = null;
+        try {
+            section = entry.getSection();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        ObservableStudent student = null;
+        try {
+            student = (ObservableStudent) entry.getStudent();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         synchronized (this){
             if (section.hasCapacity()) {
                 CommandExecutor.getInstance().execute(new RegisterCommand(student, section));

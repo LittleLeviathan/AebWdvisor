@@ -116,6 +116,14 @@ public class WaitlistEntry {
         }
         return (this.student != null) ? this.student : null;
     }
+    public Section getSection() throws SQLException {
+        if (this.section == null) {
+            // Lazy Load: Use the generic fetchOne from DatabaseManager
+            this.section = DatabaseManager.getInstance()
+                    .fetchOne(Section.class, "id", this.sectionId);
+        }
+        return (this.section != null) ? this.section : null;
+    }
 
     public void setStudent(Student student) {
         this.studentId = student.getId();

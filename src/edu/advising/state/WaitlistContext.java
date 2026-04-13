@@ -3,7 +3,9 @@ package edu.advising.state;
 import edu.advising.commands.WaitlistEntry;
 import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.NotificationManager;
+import edu.advising.users.Student;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 
 public class WaitlistContext {
@@ -11,14 +13,25 @@ public class WaitlistContext {
     private WaitlistState state;
 
     WaitlistEntry entry;
+    Student student;
 
     private WaitlistContext(WaitlistEntry entry){
         this.entry = entry;
         this.state = StateFactory.waitlistStateFor(entry.getStatus());
+        try {
+            this.student = entry.getStudent();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static WaitlistContext load(int id){
-        WaitlistEntry entry = DatabaseManager.getInstance().fetchOne(WaitlistEntry.class,"id",id);
+        WaitlistEntry entry = null;
+        try {
+            entry = DatabaseManager.getInstance().fetchOne(WaitlistEntry.class,"id",id);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         return new WaitlistContext(entry);
     }
 
@@ -29,7 +42,11 @@ public class WaitlistContext {
     }
 
     private void persist(){
-        DatabaseManager.getInstance().upsert(entry);
+        try {
+            DatabaseManager.getInstance().upsert(entry);
+        } catch (SQLException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void setRemovedDate(LocalDateTime removedDate){entry.setRemovedDate(removedDate);}
@@ -41,7 +58,7 @@ public class WaitlistContext {
 
     public void offer(){
         state.offer(this);
-        NotificationManager.notifyWaitlistUpdate(Student, String, entry.getPosition());
+        NotificationManager.getInstance().notifyWaitlistUpdate(student, String, entry.getPosition());
     }
     public void offer(long expiryHours){
         state.offer(this, expiryHours);
