@@ -1,6 +1,7 @@
 package edu.advising.notifications;
 
 import edu.advising.core.DatabaseManager;
+import edu.advising.state.facultyWaitlistPermissions.FacultyPermission;
 import edu.advising.users.Student;
 import edu.advising.users.User;
 
@@ -286,5 +287,43 @@ public class NotificationManager implements Subject {
 
     public int getObserverCount() {
         return observers.size();
+    }
+
+    /**
+     * Fires a notification to the faculty member when a student
+     * requests permission to enroll in their full section.
+     */
+    public void notifyPermissionRequest(FacultyPermission permission) {
+        Notification notification = new Notification(
+                "PERMISSION_REQUEST",
+                String.format("A student is requesting permission to enroll in section %d",
+                        permission.getSectionId()),
+                permission.getFacultyId(),  // notify the faculty member
+                "HIGH"
+        );
+        notification.addMetadata("permissionId", String.valueOf(permission.getId()));
+        notification.addMetadata("studentId",    String.valueOf(permission.getStudentId()));
+        notification.addMetadata("sectionId",    String.valueOf(permission.getSectionId()));
+        notifyObservers(notification);
+    }
+
+    /**
+     * Fires a notification to the student when faculty approves
+     * or denies their permission request.
+     */
+    public void notifyPermissionDecision(FacultyPermission permission) {
+        Notification notification = new Notification(
+                "PERMISSION_DECISION",
+                String.format("Your permission request for section %d has been %s",
+                        permission.getSectionId(), permission.getStatus()),
+                permission.getStudentId(),  // notify the student
+                "HIGH"
+        );
+        notification.addMetadata("permissionId", String.valueOf(permission.getId()));
+        notification.addMetadata("status",       permission.getStatus());
+        if (permission.getDenialReason() != null) {
+            notification.addMetadata("denialReason", permission.getDenialReason());
+        }
+        notifyObservers(notification);
     }
 }

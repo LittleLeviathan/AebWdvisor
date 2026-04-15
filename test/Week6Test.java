@@ -1,8 +1,11 @@
 import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.state.*;
+import edu.advising.state.facultyWaitlistPermissions.*;
 import edu.advising.users.Student;
 import edu.advising.users.UserFactory;
+
+import java.sql.SQLException;
 
 // ============================================================================
 // WEEK 6: STATE PATTERN — Integration Test Application
@@ -28,7 +31,16 @@ import edu.advising.users.UserFactory;
 //   GROUP 11 — checkAndAdvance() auto-advances state
 //   GROUP 12 — Terminal state (CLOSED blocks all transitions)
 //   GROUP 13 — StateFactory registration mapping
-//
+//   GROUP 14 — Enrollment valid state transitions (PENDING → ENROLLED → DROPPED/WITHDRAWN/COMPLETED)
+//   GROUP 15 — Enrollment guard methods (canDrop, canWithdraw, canComplete, canReenroll)
+//   GROUP 16 — Enrollment illegal transitions (throw IllegalStateException)
+//   GROUP 17 — Enrollment StateFactory mapping (all 5 status strings + null + unknown)
+//   GROUP 18 — FacultyPermission ORM integration (create → persist → reload from DB)
+//   GROUP 19 — FacultyPermission valid state transitions (all paths in state diagram)
+//   GROUP 20 — FacultyPermission isValid() (true only for APPROVED)
+//   GROUP 21 — FacultyPermission illegal transitions (blocked and logged)
+//   GROUP 22 — FacultyPermission StateFactory mapping (all 4 status strings + null + unknown)
+//   GROUP 23 — FacultyPermission isExpiredByTime() and checkAndAdvance()
 // ============================================================================
 
 public class Week6Test {
@@ -43,11 +55,15 @@ public class Week6Test {
     private static UserFactory userFactory;
     private static Student student;
 
+    private static int fpFacultyId;
+    private static int fpStudentId;
+    private static int fpSectionId;
+
     // =========================================================================
     // ENTRY POINT
     // =========================================================================
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         banner("WEEK 6 — STATE PATTERN  |  BetterAdvisor Test Suite");
 
         try {
@@ -75,6 +91,12 @@ public class Week6Test {
         testEnrollmentGuardMethods();
         testEnrollmentIllegalTransitions();
         testEnrollmentStateFactory();
+        testFacultyPermissionORM();
+        runGroup19();
+        runGroup20();
+        runGroup21();
+        runGroup22();
+        runGroup23();
 
         // ── Final report ──────────────────────────────────────────────────────
         banner("RESULTS");
@@ -104,6 +126,11 @@ public class Week6Test {
                 "STUDENT", "jsmith", "Password1!",
                 "jsmith@college.edu", "Jane", "Smith", "S10001");
         student = raw;
+
+        fpFacultyId = createFacultyUser();
+        fpStudentId = createStudentUser();
+        fpSectionId = createSection(fpFacultyId);
+
         note("Student: " + student.getFullName() + " (id=" + student.getId() + ")");
         note("setUp() complete\n");
     }
@@ -673,4 +700,333 @@ public class Week6Test {
         e.setStatus(status);
         return e;
     }
+
+    // ============================================================================
+    // GROUP 18 — FacultyPermission ORM: create, persist, and reload from DB
+    // ============================================================================
+
+    private static void testFacultyPermissionORM() throws Exception {
+        header("FacultyPermission ORM (create → save → load)");
+        
+        // ── Prerequisite seed rows ──────────────────────────────────────────────
+        // Insert a minimal user (faculty), student row, and section so the FK
+        // constraints on faculty_permissions are satisfied.
+
+        int facultyUserId = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_faculty_test", "pw", "FACULTY", "Test", "Faculty", "fp_faculty@test.edu");
+
+        db.executeInsert(
+                "INSERT INTO faculty (id, employee_id, department) VALUES (?, ?, ?)",
+                facultyUserId, "EMP-FP-01", "CS");
+
+        int studentUserId = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_student_test", "pw", "STUDENT", "Test", "Student", "fp_student@test.edu");
+
+        db.executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                studentUserId, "S-FP-01", 3.0);
+
+        // Grab any existing course/department, or insert minimal ones
+        int deptId = db.executeInsert(
+                "INSERT INTO departments (code, name) VALUES (?, ?)",
+                "FP_DEPT", "FP Test Dept");
+
+        int courseId = db.executeInsert(
+                "INSERT INTO courses (code, name, credits, department_id) VALUES (?, ?, ?, ?)",
+                "FP-101", "FP Test Course", 3, deptId);
+
+        int sectionId = db.executeInsert(
+                "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                courseId, "001", "FALL", 2025, 30, 30, facultyUserId, "OPEN");
+
+        // ── Create ───────────────────────────────────────────────────────────────
+        FacultyPermission fp = new FacultyPermission(studentUserId, sectionId, facultyUserId);
+
+        check("18-1: initial status is REQUESTED", "REQUESTED".equals(fp.getStatus()));
+
+        long diffMinutes = java.time.Duration.between(fp.getRequestDate(), fp.getExpiryDate()).toMinutes();
+        check("18-2: expiryDate is 48 hours after requestDate", diffMinutes >= 2879 && diffMinutes <= 2881);
+
+        // ── Persist ──────────────────────────────────────────────────────────────
+        db.upsert(fp);
+
+        check("18-3: upsert assigned a generated id", fp.getId() > 0);
+
+        // ── Reload ───────────────────────────────────────────────────────────────
+        FacultyPermission loaded = db.fetchOne(FacultyPermission.class, "id", fp.getId());
+
+        check("18-4: fetchOne returned a non-null row",         loaded != null);
+        check("18-5: loaded status is REQUESTED",               loaded != null && "REQUESTED".equals(loaded.getStatus()));
+        check("18-6: loaded FK ids match saved values",         loaded != null && loaded.getStudentId() == studentUserId
+                && loaded.getSectionId() == sectionId
+                && loaded.getFacultyId() == facultyUserId);
+        check("18-7: loaded requestDate matches saved value",   loaded != null
+                && loaded.getRequestDate() != null
+                && loaded.getRequestDate().getMinute() == fp.getRequestDate().getMinute());
+    }
+
+    // ============================================================================
+// GROUP 19 — FacultyPermission valid state transitions
+// ============================================================================
+
+    private static void runGroup19() {
+        System.out.println("\n--- GROUP 19: FacultyPermission valid state transitions ---");
+
+        // REQUESTED → APPROVED
+        FacultyPermission fp1 = buildPermission();
+        FacultyPermissionContext ctx1 = new FacultyPermissionContext(fp1);
+        ctx1.approve();
+        check("19-1: REQUESTED → APPROVED", "APPROVED".equals(fp1.getStatus()));
+
+        // REQUESTED → DENIED
+        FacultyPermission fp2 = buildPermission();
+        FacultyPermissionContext ctx2 = new FacultyPermissionContext(fp2);
+        ctx2.deny("Class full of required prereq students");
+        check("19-2: REQUESTED → DENIED", "DENIED".equals(fp2.getStatus()));
+
+        // deny() records the denial reason
+        check("19-3: denial reason is recorded", "Class full of required prereq students".equals(fp2.getDenialReason()));
+
+        // APPROVED → EXPIRED
+        FacultyPermission fp3 = buildPermission();
+        FacultyPermissionContext ctx3 = new FacultyPermissionContext(fp3);
+        ctx3.approve();
+        ctx3.expire();
+        check("19-4: APPROVED → EXPIRED", "EXPIRED".equals(fp3.getStatus()));
+
+        // APPROVED → DENIED via revoke()
+        FacultyPermission fp4 = buildPermission();
+        FacultyPermissionContext ctx4 = new FacultyPermissionContext(fp4);
+        ctx4.approve();
+        ctx4.revoke("Admin override");
+        check("19-5: APPROVED → DENIED via revoke()", "DENIED".equals(fp4.getStatus()));
+        check("19-6: revoke() records denial reason",  "Admin override".equals(fp4.getDenialReason()));
+
+        // DENIED → REQUESTED via resubmit()
+        FacultyPermission fp5 = buildPermission();
+        FacultyPermissionContext ctx5 = new FacultyPermissionContext(fp5);
+        ctx5.deny("Not allowed");
+        ctx5.resubmit();
+        check("19-7: DENIED → REQUESTED via resubmit()", "REQUESTED".equals(fp5.getStatus()));
+
+        // resubmit() resets expiryDate to +48h
+        long diffMinutes = java.time.Duration.between(
+                java.time.LocalDateTime.now(), fp5.getExpiryDate()).toMinutes();
+        check("19-8: resubmit() resets expiryDate to +48h", diffMinutes >= 2878 && diffMinutes <= 2880);
+
+        // resubmit() clears denial reason
+        check("19-9: resubmit() clears denialReason", fp5.getDenialReason() == null);
+
+        // EXPIRED → REQUESTED via resubmit()
+        FacultyPermission fp6 = buildPermission();
+        FacultyPermissionContext ctx6 = new FacultyPermissionContext(fp6);
+        ctx6.approve();
+        ctx6.expire();
+        ctx6.resubmit();
+        check("19-10: EXPIRED → REQUESTED via resubmit()", "REQUESTED".equals(fp6.getStatus()));
+    }
+
+
+// ============================================================================
+// GROUP 20 — FacultyPermission isValid()
+// ============================================================================
+
+    private static void runGroup20() {
+        System.out.println("\n--- GROUP 20: FacultyPermission isValid() ---");
+
+        FacultyPermission fp = buildPermission();
+        FacultyPermissionContext ctx = new FacultyPermissionContext(fp);
+
+        check("20-1: REQUESTED  → isValid() false", !ctx.isValid());
+
+        ctx.approve();
+        check("20-2: APPROVED   → isValid() true",  ctx.isValid());
+
+        ctx.expire();
+        check("20-3: EXPIRED    → isValid() false", !ctx.isValid());
+
+        // start fresh for DENIED check
+        FacultyPermissionContext ctx2 = new FacultyPermissionContext(buildPermission());
+        ctx2.deny("reason");
+        check("20-4: DENIED     → isValid() false", !ctx2.isValid());
+    }
+
+
+// ============================================================================
+// GROUP 21 — FacultyPermission illegal transitions
+// ============================================================================
+
+    private static void runGroup21() {
+        System.out.println("\n--- GROUP 21: FacultyPermission illegal transitions ---");
+
+        // approve() on APPROVED should not change state
+        FacultyPermission fp1 = buildPermission();
+        FacultyPermissionContext ctx1 = new FacultyPermissionContext(fp1);
+        ctx1.approve();
+        ctx1.approve(); // illegal
+        check("21-1: approve() on APPROVED does not change state", "APPROVED".equals(fp1.getStatus()));
+
+        // expire() on REQUESTED should not change state
+        FacultyPermission fp2 = buildPermission();
+        FacultyPermissionContext ctx2 = new FacultyPermissionContext(fp2);
+        ctx2.expire(); // illegal
+        check("21-2: expire() on REQUESTED does not change state", "REQUESTED".equals(fp2.getStatus()));
+
+        // resubmit() on REQUESTED should not change state
+        FacultyPermission fp3 = buildPermission();
+        FacultyPermissionContext ctx3 = new FacultyPermissionContext(fp3);
+        ctx3.resubmit(); // illegal
+        check("21-3: resubmit() on REQUESTED does not change state", "REQUESTED".equals(fp3.getStatus()));
+
+        // revoke() on REQUESTED should not change state
+        FacultyPermission fp4 = buildPermission();
+        FacultyPermissionContext ctx4 = new FacultyPermissionContext(fp4);
+        ctx4.revoke("bad call"); // illegal
+        check("21-4: revoke() on REQUESTED does not change state", "REQUESTED".equals(fp4.getStatus()));
+
+        // approve() on DENIED should not change state
+        FacultyPermission fp5 = buildPermission();
+        FacultyPermissionContext ctx5 = new FacultyPermissionContext(fp5);
+        ctx5.deny("reason");
+        ctx5.approve(); // illegal
+        check("21-5: approve() on DENIED does not change state", "DENIED".equals(fp5.getStatus()));
+
+        // resubmit() on APPROVED should not change state
+        FacultyPermission fp6 = buildPermission();
+        FacultyPermissionContext ctx6 = new FacultyPermissionContext(fp6);
+        ctx6.approve();
+        ctx6.resubmit(); // illegal
+        check("21-6: resubmit() on APPROVED does not change state", "APPROVED".equals(fp6.getStatus()));
+
+        // expire() on EXPIRED should not change state
+        FacultyPermission fp7 = buildPermission();
+        FacultyPermissionContext ctx7 = new FacultyPermissionContext(fp7);
+        ctx7.approve();
+        ctx7.expire();
+        ctx7.expire(); // illegal
+        check("21-7: expire() on EXPIRED does not change state", "EXPIRED".equals(fp7.getStatus()));
+    }
+
+
+// ============================================================================
+// GROUP 22 — FacultyPermission StateFactory mapping
+// ============================================================================
+
+    private static void runGroup22() {
+        System.out.println("\n--- GROUP 22: FacultyPermission StateFactory mapping ---");
+
+        check("22-1: REQUESTED maps to RequestedPermissionState",
+                StateFactory.permissionStateFor("REQUESTED") instanceof FacultyPermissionRequestedState);
+        check("22-2: APPROVED  maps to ApprovedPermissionState",
+                StateFactory.permissionStateFor("APPROVED")  instanceof FacultyPermissionApprovedState);
+        check("22-3: DENIED    maps to DeniedPermissionState",
+                StateFactory.permissionStateFor("DENIED")    instanceof FacultyPermissionDeniedState);
+        check("22-4: EXPIRED   maps to ExpiredPermissionState",
+                StateFactory.permissionStateFor("EXPIRED")   instanceof FacultyPermissionExpiredState);
+
+        // null input defaults to REQUESTED
+        check("22-5: null defaults to RequestedPermissionState",
+                StateFactory.permissionStateFor(null) instanceof FacultyPermissionRequestedState);
+
+        // unknown string throws IllegalArgumentException
+        boolean threw = false;
+        try {
+            StateFactory.permissionStateFor("BOGUS");
+        } catch (IllegalArgumentException e) {
+            threw = true;
+        }
+        check("22-6: unknown status throws IllegalArgumentException", threw);
+    }
+
+
+// ============================================================================
+// GROUP 23 — FacultyPermission isExpiredByTime() and checkAndAdvance()
+// ============================================================================
+
+    private static void runGroup23() {
+        System.out.println("\n--- GROUP 23: FacultyPermission isExpiredByTime() and checkAndAdvance() ---");
+
+        // isExpiredByTime() false when REQUESTED, even with past expiryDate
+        FacultyPermission fp1 = buildPermission();
+        fp1.setExpiryDate(java.time.LocalDateTime.now().minusHours(1));
+        FacultyPermissionContext ctx1 = new FacultyPermissionContext(fp1);
+        check("23-1: isExpiredByTime() false when REQUESTED with past expiryDate", !ctx1.isExpiredByTime());
+
+        // isExpiredByTime() false when APPROVED but expiryDate is in the future
+        FacultyPermission fp2 = buildPermission();
+        FacultyPermissionContext ctx2 = new FacultyPermissionContext(fp2);
+        ctx2.approve();
+        check("23-2: isExpiredByTime() false when APPROVED with future expiryDate", !ctx2.isExpiredByTime());
+
+        // isExpiredByTime() true when APPROVED and expiryDate is in the past
+        FacultyPermission fp3 = buildPermission();
+        fp3.setExpiryDate(java.time.LocalDateTime.now().minusHours(1));
+        FacultyPermissionContext ctx3 = new FacultyPermissionContext(fp3);
+        ctx3.getPermission().setStatus("APPROVED"); // force APPROVED without calling approve() to avoid persist
+        ctx3.setState(FacultyPermissionApprovedState.INSTANCE);
+        check("23-3: isExpiredByTime() true when APPROVED with past expiryDate", ctx3.isExpiredByTime());
+
+        // checkAndAdvance() transitions APPROVED → EXPIRED when past expiryDate
+        ctx3.checkAndAdvance();
+        check("23-4: checkAndAdvance() transitions to EXPIRED when past expiryDate",
+                "EXPIRED".equals(fp3.getStatus()));
+
+        // checkAndAdvance() does nothing when REQUESTED
+        FacultyPermission fp4 = buildPermission();
+        fp4.setExpiryDate(java.time.LocalDateTime.now().minusHours(1));
+        FacultyPermissionContext ctx4 = new FacultyPermissionContext(fp4);
+        ctx4.checkAndAdvance();
+        check("23-5: checkAndAdvance() does nothing when REQUESTED", "REQUESTED".equals(fp4.getStatus()));
+    }
+
+
+// ============================================================================
+// Helper — builds a FacultyPermission with sectionId=0 to skip DB saves
+// ============================================================================
+
+    private static FacultyPermission buildPermission() {
+        return new FacultyPermission(fpStudentId , fpSectionId, fpFacultyId);
+    }
+    private static int createFacultyUser() throws SQLException {
+        int facultyUserId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_unit_faculty", "pw", "FACULTY", "Test", "Faculty", "fp_unit_faculty@test.edu");
+
+        DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO faculty (id, employee_id, department) VALUES (?, ?, ?)",
+                facultyUserId, "EMP-UNIT-01", "CS");
+
+        return facultyUserId;
+    }
+    private static int createStudentUser() throws SQLException {
+        int studentUserId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "fp_unit_student", "pw", "STUDENT", "Test", "Student", "fp_unit_student@test.edu");
+        DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                studentUserId, "S-UNIT-01", 3.0);
+        return studentUserId;
+    }
+    private static int createSection(int facultyId) throws SQLException {
+        int deptId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO departments (code, name) VALUES (?, ?)",
+                "UNIT_DEPT", "Unit Test Dept");
+
+        int courseId = DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO courses (code, name, credits, department_id) VALUES (?, ?, ?, ?)",
+                "UNIT-101", "Unit Test Course", 3, deptId);
+
+        return DatabaseManager.getInstance().executeInsert(
+                "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                courseId, "001", "FALL", 2025, 30, 30, facultyId, "OPEN");
+    }
+
 }
