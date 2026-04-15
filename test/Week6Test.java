@@ -1,3 +1,6 @@
+
+import edu.advising.commands.RegisterCommand;
+import edu.advising.commands.Section;
 import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.state.*;
@@ -41,6 +44,7 @@ import java.sql.SQLException;
 //   GROUP 21 — FacultyPermission illegal transitions (blocked and logged)
 //   GROUP 22 — FacultyPermission StateFactory mapping (all 4 status strings + null + unknown)
 //   GROUP 23 — FacultyPermission isExpiredByTime() and checkAndAdvance()
+//   GROUP 24 — RegisterCommand bypasses capacity check with valid permission
 // ============================================================================
 
 public class Week6Test {
@@ -97,6 +101,7 @@ public class Week6Test {
         runGroup21();
         runGroup22();
         runGroup23();
+        runGroup24();
 
         // ── Final report ──────────────────────────────────────────────────────
         banner("RESULTS");
@@ -707,7 +712,7 @@ public class Week6Test {
 
     private static void testFacultyPermissionORM() throws Exception {
         header("FacultyPermission ORM (create → save → load)");
-        
+
         // ── Prerequisite seed rows ──────────────────────────────────────────────
         // Insert a minimal user (faculty), student row, and section so the FK
         // constraints on faculty_permissions are satisfied.
@@ -1027,6 +1032,94 @@ public class Week6Test {
                 "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 courseId, "001", "FALL", 2025, 30, 30, facultyId, "OPEN");
+    }
+
+
+// ============================================================================
+// GROUP 24 — RegisterCommand bypasses capacity check with valid permission
+// ============================================================================
+
+    private static void runGroup24() throws Exception {
+        System.out.println("\n--- GROUP 24: RegisterCommand faculty permission capacity bypass ---");
+
+        // ── Set up a full section ─────────────────────────────────────────────
+        // Create a brand new section that is completely full (capacity == enrolled)
+        int g24DeptId = db.executeInsert(
+                "INSERT INTO departments (code, name) VALUES (?, ?)",
+                "G24_DEPT", "Group24 Test Dept");
+
+        int g24CourseId = db.executeInsert(
+                "INSERT INTO courses (code, name, credits, department_id) VALUES (?, ?, ?, ?)",
+                "G24-101", "Group24 Test Course", 3, g24DeptId);
+
+        int g24SectionId = db.executeInsert(
+                "INSERT INTO sections (course_id, section_number, semester, `year`, capacity, enrolled, faculty_id, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                g24CourseId, "001", "FALL", 2025, 1, 1, fpFacultyId, "OPEN");
+
+        // ── Create a student for this test ────────────────────────────────────
+        int g24StudentUserId = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "g24_student", "pw", "STUDENT", "G24", "Student", "g24_student@test.edu");
+        db.executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                g24StudentUserId, "S-G24-01", 3.5);
+
+        // ── Test 24-1: Registration fails without a permission ────────────────
+        edu.advising.users.Student g24RawStudent =
+                DatabaseManager.getInstance().fetchOne(edu.advising.users.Student.class, "id", g24StudentUserId);
+        edu.advising.notifications.ObservableStudent g24Student =
+                edu.advising.notifications.ObservableStudent.fromSuperType(g24RawStudent);
+        Section g24Section = DatabaseManager.getInstance().fetchOne(Section.class, "id", g24SectionId);
+
+        RegisterCommand cmdNoPermission = new RegisterCommand(g24Student, g24Section);
+        cmdNoPermission.execute();
+        check("24-1: registration fails when section full and no permission exists",
+                !cmdNoPermission.wasSuccessful());
+
+        // ── Create and approve a faculty permission ───────────────────────────
+        FacultyPermissionContext permCtx = FacultyPermissionContext.create(
+                g24StudentUserId, g24SectionId, fpFacultyId);
+        permCtx.approve();
+
+        check("24-2: permission status is APPROVED in DB",
+                "APPROVED".equals(permCtx.getPermission().getStatus()));
+
+        // ── Test 24-3: Registration succeeds with valid permission ─────────────
+        RegisterCommand cmdWithPermission = new RegisterCommand(g24Student, g24Section);
+        cmdWithPermission.execute();
+        check("24-3: registration succeeds when section full but valid permission exists",
+                cmdWithPermission.wasSuccessful());
+
+        // ── Test 24-4: Auto-expired permission does NOT bypass capacity ────────
+        // Create a new student and permission that is already expired
+        int g24StudentUserId2 = db.executeInsert(
+                "INSERT INTO users (username, password, user_type, first_name, last_name, email) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                "g24_student2", "pw", "STUDENT", "G24b", "Student", "g24_student2@test.edu");
+        db.executeInsert(
+                "INSERT INTO students (id, student_id, gpa) VALUES (?, ?, ?)",
+                g24StudentUserId2, "S-G24-02", 3.0);
+
+        // Insert an APPROVED permission with a past expiryDate directly into DB
+        db.executeInsert(
+                "INSERT INTO faculty_permissions (student_id, section_id, faculty_id, status, request_date, expiry_date) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                g24StudentUserId2, g24SectionId, fpFacultyId,
+                "APPROVED",
+                java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusHours(50)),
+                java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusHours(2)));
+
+        edu.advising.users.Student g24RawStudent2 =
+                DatabaseManager.getInstance().fetchOne(edu.advising.users.Student.class, "id", g24StudentUserId2);
+        edu.advising.notifications.ObservableStudent g24Student2 =
+                edu.advising.notifications.ObservableStudent.fromSuperType(g24RawStudent2);
+
+        RegisterCommand cmdExpiredPermission = new RegisterCommand(g24Student2, g24Section);
+        cmdExpiredPermission.execute();
+        check("24-4: registration fails when permission is APPROVED but expired",
+                !cmdExpiredPermission.wasSuccessful());
     }
 
 }
