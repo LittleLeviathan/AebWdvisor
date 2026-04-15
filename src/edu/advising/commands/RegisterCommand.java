@@ -6,9 +6,12 @@ import edu.advising.core.Table;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.notifications.ObservableStudent;
 import edu.advising.state.EnrollmentContext;
+import edu.advising.state.facultyWaitlistPermissions.FacultyPermission;
+import edu.advising.state.facultyWaitlistPermissions.FacultyPermissionContext;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.advising.users.Student;
@@ -44,13 +47,15 @@ public class RegisterCommand extends BaseCommand {
         executionTime = LocalDateTime.now();
 
         if (!section.hasCapacity()) {
-            // check if student has a valid faculty permission for this section
-            // (a real implementation would look up the permission by studentId + sectionId)
-            // for now, registration fails as before
-            successful = false;
-            errorMessage = String.format("Registration failed for %s - section full", section.getCourseCode());
-            System.out.println("✗ " + errorMessage);
-            return;
+            // Check if the student has a valid (APPROVED) faculty permission
+            // for this specific section before blocking registration
+            if (!hasValidFacultyPermission()) {
+                successful = false;
+                errorMessage = String.format("Registration failed for %s - section full", section.getCourseCode());
+                System.out.println("✗ " + errorMessage);
+                return;
+            }
+            System.out.printf("✓ Faculty permission bypassing capacity check for %s%n", section.getCourseCode());
         }
 
         if (hasScheduleConflict()) {
@@ -73,6 +78,40 @@ public class RegisterCommand extends BaseCommand {
         } catch (Exception e) {
             successful   = false;
             errorMessage = "Registration failed: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Checks whether the student has a valid (APPROVED and not expired)
+     * FacultyPermission for this specific section.
+     * Queries the faculty_permissions table by student_id and section_id,
+     * loads the context (which auto-expires if past expiryDate), and
+     * returns true only if isValid() is true.
+     */
+    private boolean hasValidFacultyPermission() {
+        try {
+            String sql = "SELECT * FROM faculty_permissions WHERE student_id = ? AND section_id = ? LIMIT 1";
+            List<FacultyPermission> results = DatabaseManager.getInstance().fetchList(
+                    sql,
+                    rs -> {
+                        FacultyPermission fp = new FacultyPermission();
+                        fp.setId(rs.getInt("id"));
+                        return fp;
+                    },
+                    student.getId(), section.getId()
+            );
+
+            if (results.isEmpty()) {
+                return false;
+            }
+
+            // Load the full context — this auto-expires if past expiryDate
+            FacultyPermissionContext ctx = FacultyPermissionContext.load(results.get(0).getId());
+            return ctx.isValid();
+
+        } catch (SQLException e) {
+            System.err.println("RegisterCommand: error checking faculty permission: " + e.getMessage());
+            return false;
         }
     }
 
@@ -142,4 +181,3 @@ public class RegisterCommand extends BaseCommand {
         }
     }
 }
-
