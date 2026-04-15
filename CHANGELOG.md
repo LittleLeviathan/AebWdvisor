@@ -311,3 +311,43 @@ Week 9 - Enrollment State Machine (Issue #32)
       all five status strings plus null and unknown inputs.
     - Updated buildEnrollment() helper to use sectionId 0
       so tests run without a real database section.
+
+Week 10 - Faculty Permission State Machine (Peer Code Review — Issue #29)
+======================================
+***Peer code review and database completion for UserStory
+[Faculty Permission to Add Waitlisted Students State Machine].
+
+- RegisterCommand.java - UPDATED (Week 10)
+    - Added hasValidFacultyPermission() private method that queries
+      the faculty_permissions table by student_id and section_id.
+      Loads the FacultyPermissionContext for the found permission
+      which auto-expires it if past expiryDate. Returns true only
+      if isValid() returns true (APPROVED state).
+    - Updated execute() to call hasValidFacultyPermission() when
+      section is at capacity. If valid permission exists, bypasses
+      the capacity check and allows registration to proceed.
+      If no valid permission exists, registration still fails as
+      before with section full error message.
+    - Added imports for FacultyPermission, FacultyPermissionContext,
+      and List.
+
+- Week6Test.java - UPDATED (Week 10)
+    - Added imports for RegisterCommand and Section.
+    - Added GROUP 24 to header comment list.
+    - Added runGroup24() call in main() method.
+    - Added GROUP 24 — RegisterCommand faculty permission capacity
+      bypass. 4 integration tests:
+      24-1: registration fails when section is full and no
+      permission exists.
+      24-2: permission status is APPROVED in DB after approve().
+      24-3: registration succeeds when section is full but valid
+      APPROVED permission exists.
+      24-4: registration fails when permission is APPROVED but
+      past expiryDate (auto-expires to EXPIRED on load).
+
+FIXES:
+- Java 17 - FIXED (Week 10)
+    - Windows update wiped Java PATH variable causing Maven to
+      use Java 11 instead of Java 17. Downloaded and reinstalled
+      Java 17 to fix version mismatch error:
+      "class file version 61.0, recognizes up to 55.0"
