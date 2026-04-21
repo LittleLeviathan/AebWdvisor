@@ -142,6 +142,18 @@ public class ViewContext {
             case "STUDENT_DASHBOARD":
                 finalScene = edu.advising.gui.StudentDashboardScreen.getScene(currentUser);
                 break;
+            case "FACULTY_DASHBOARD":
+                finalScene = edu.advising.gui.FacultyDashboardScreen.getScene(currentUser);
+                break;
+            case "REGISTRATION":
+                finalScene = edu.advising.gui.RegistrationScreen.getScene(currentUser);
+                break;
+            case "TRANSCRIPT":
+                finalScene = edu.advising.gui.TranscriptScreen.getScene(currentUser);
+                break;
+            case "PERMISSION_MANAGEMENT":
+                finalScene = edu.advising.gui.PermissionManagementScreen.getScene(currentUser);
+                break;
             default:
                 return;
         }

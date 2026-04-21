@@ -28,6 +28,8 @@ public class BetterAdvisorApp extends Application {
         UserFactory userFactory = new UserFactory();
         userFactory.createUser("STUDENT", "testStudent", "Password1!",
                 "test@school.edu", "John", "Doe", "S12345");
+        userFactory.createUser("FACULTY", "testFaculty", "Password1!",
+                "faculty@school.edu", "Jane", "Smith", "F001", "Computer Science");
 
 
         // Set window title and size
