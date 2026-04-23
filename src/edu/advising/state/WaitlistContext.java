@@ -25,7 +25,7 @@ public class WaitlistContext {
         }
     }
 
-    private static WaitlistContext load(int id){
+    public static WaitlistContext load(int id){
         WaitlistEntry entry = null;
         try {
             entry = DatabaseManager.getInstance().fetchOne(WaitlistEntry.class,"id",id);
@@ -35,7 +35,7 @@ public class WaitlistContext {
         return new WaitlistContext(entry);
     }
 
-    private static WaitlistEntry create(int studentId, int sectionId, int position){
+    public static WaitlistEntry create(int studentId, int sectionId, int position){
         WaitlistEntry entry = new WaitlistEntry(studentId, sectionId, position);
         entry.setStatus("ACTIVE");
         return entry;
@@ -58,7 +58,6 @@ public class WaitlistContext {
 
     public void offer(){
         state.offer(this);
-        NotificationManager.getInstance().notifyWaitlistUpdate(student, String, entry.getPosition());
     }
     public void offer(long expiryHours){
         state.offer(this, expiryHours);

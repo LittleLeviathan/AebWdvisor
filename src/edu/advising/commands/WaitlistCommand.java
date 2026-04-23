@@ -6,6 +6,7 @@ import edu.advising.core.DatabaseManager;
 import edu.advising.core.Table;
 import edu.advising.notifications.NotificationManager;
 import edu.advising.notifications.ObservableStudent;
+import edu.advising.state.WaitlistContext;
 import edu.advising.users.Student;
 
 import java.sql.SQLException;
@@ -55,6 +56,7 @@ public class WaitlistCommand extends BaseCommand {
                 System.out.printf("✓ Student %s added to waitlist for %s (Position: #%d)%n",
                         student.getStudentId(), section.getCourseCode(), position);
                 notificationManager.notifyWaitlistUpdate(student, section.getCourseCode(), position);
+                WaitlistContext.create(student.getId(), section.getId(), position);
             } catch (SQLException e) {
                 System.out.printf("✓ Student %s added to waitlist for %s but couldn't determine position.%n",
                         student.getStudentId(), section.getCourseCode());

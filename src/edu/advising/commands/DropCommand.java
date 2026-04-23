@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.advising.core.DatabaseManager;
 import edu.advising.core.Table;
 import edu.advising.notifications.ObservableStudent;
+import edu.advising.state.WaitlistContext;
 import edu.advising.users.Student;
 
 import java.sql.SQLException;
@@ -118,6 +119,7 @@ public class DropCommand extends BaseCommand {
             Student student = nextWaitlistEntry.getStudent();
             // Remove that student from the waitlist
             section.removeFromWaitlist(student);
+            WaitlistContext.load(nextWaitlistEntry.getId()).offer();
             section.enroll(student);
             System.out.println(String.format("↑ Student ID %s promoted from waitlist", student.getStudentId()));
 

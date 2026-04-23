@@ -1,12 +1,16 @@
 package edu.advising.state;
 
+import edu.advising.commands.Section;
+import edu.advising.core.DatabaseManager;
 import edu.advising.notifications.NotificationManager;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 
 public class ActiveWaitlistState implements WaitlistState {
 
     private static final ActiveWaitlistState INSTANCE = new ActiveWaitlistState();
+
 
     private ActiveWaitlistState(){
 
@@ -21,15 +25,19 @@ public class ActiveWaitlistState implements WaitlistState {
     }
 
     @Override
-    public void offer(WaitlistContext context) {
+    public void offer(WaitlistContext context) throws SQLException {
+        String course = DatabaseManager.getInstance().fetchOne(Section.class, "id", context.entry.getSectionId()).getCourseCode();
         context.setState(OfferedWaitlistState.getInstance());
         context.setRemovedDate(LocalDateTime.now().plusHours(24));
         System.out.println("Seat has been offered. Offer expires in 24 hours");
+        NotificationManager.getInstance().notifyWaitlistUpdate(context.student, course, context.entry.getPosition());
     }
-    public void offer(WaitlistContext context, long expiryHours) {
+    public void offer(WaitlistContext context, long expiryHours) throws SQLException {
+        String course = DatabaseManager.getInstance().fetchOne(Section.class, "id", context.entry.getSectionId()).getCourseCode();
         context.setState(OfferedWaitlistState.getInstance());
         context.setRemovedDate(LocalDateTime.now().plusHours(expiryHours));
         System.out.println("Seat has been offered. Offer expires in " + expiryHours + " hours");
+        NotificationManager.getInstance().notifyWaitlistUpdate(context.student, course, context.entry.getPosition());
     }
 
     @Override
