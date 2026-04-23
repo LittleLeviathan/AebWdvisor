@@ -7,6 +7,7 @@ import edu.advising.state.ReadyTranscriptState;
 import edu.advising.state.SentTranscriptState;
 import edu.advising.state.CancelledTranscriptState;
 import edu.advising.state.FailedTranscriptState;
+import edu.advising.state.facultyWaitlistPermissions.*;
 
 /**
  * StateFactory - Utility Class (Week 9)
@@ -72,6 +73,25 @@ public class StateFactory {
             case "OPEN":     return OpenRegistrationState.INSTANCE;
             case "LATE":     return LateRegistrationState.INSTANCE;
             case "CLOSED":   return ClosedRegistrationState.INSTANCE;
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown registration status: " + status);
+        }
+    }
+
+    /**
+     * Maps a faculty waitlist permission status string from the DB
+     * to the correct State singleton.
+     */
+    public static FacultyPermissionState permissionStateFor(String status) {
+        if (status == null) {
+            return FacultyPermissionRequestedState.INSTANCE;
+        }
+        switch (status) {
+            case "REQUESTED": return FacultyPermissionRequestedState.INSTANCE;
+            case "APPROVED":  return FacultyPermissionApprovedState.INSTANCE;
+            case "EXPIRED":   return FacultyPermissionExpiredState.INSTANCE;
+            case "DENIED":    return FacultyPermissionDeniedState.INSTANCE;
             default:
                 throw new IllegalArgumentException(
                         "Unknown registration status: " + status);
