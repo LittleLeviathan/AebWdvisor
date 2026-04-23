@@ -56,10 +56,10 @@ public class WaitlistContext {
         entry.setStatus(state.getName());
     }
 
-    public void offer(){
+    public void offer() throws SQLException {
         state.offer(this);
     }
-    public void offer(long expiryHours){
+    public void offer(long expiryHours) throws SQLException {
         state.offer(this, expiryHours);
     }
     public void accept(){
