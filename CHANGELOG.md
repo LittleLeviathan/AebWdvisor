@@ -288,6 +288,7 @@ Week 9 - Enrollment State Machine (Issue #32)
       EnrollmentContext. Fixed notificationManager field to be
       final. Fixed unchecked Map assignment warning in
       deserializeCommandData().
+
 - EnrollmentContext.java - FIXED (Week 9)
     - Made constructor public to allow unit tests to build an
       EnrollmentContext from a manually constructed Enrollment
@@ -311,6 +312,205 @@ Week 9 - Enrollment State Machine (Issue #32)
       all five status strings plus null and unknown inputs.
     - Updated buildEnrollment() helper to use sectionId 0
       so tests run without a real database section.
+
+
+Week 10 - View Navigation State Machine (Issue #34)
+======================================
+***working on UserStory [Web and JavaFX View Navigation State Machine].
+
+- ViewContext.java - Context Class (Week 10)
+    - The brain of the entire navigation system. Holds the current
+      screen the user is on (currentState) and a Deque history stack
+      that tracks previous screens so back() can return to them.
+      start() sets the app to GuestViewState on launch, calls enter()
+      and render() to show the guest screen.
+      navigateTo() is the most important method — checks if the new
+      screen requires authentication before switching. If it does and
+      no user is logged in, redirects to GuestViewState instead.
+      Calls exit() on the current screen, pushes it onto the history
+      stack, sets the new screen, then calls enter() and render() on it.
+      back() pops the previous screen off the history stack, calls
+      exit() on the current screen, sets the popped screen as current,
+      then calls enter() and render() on it. Does nothing if history
+      is empty.
+      logout() clears currentUser, clears the history stack, then
+      calls navigateTo(GuestViewState.INSTANCE) to return to the
+      guest screen.
+      handleAction() delegates the action and args directly to
+      currentState.handleAction() — the context never makes decisions,
+      it always delegates to the current state.
+      render() delegates directly to currentState.render().
+
+- GuestViewState.java - Concrete State Class (Week 10)
+    - The screen the user sees when the app first launches or after
+      logging out. The only screen that does not require authentication.
+      Implemented as a stateless singleton — only one instance ever
+      exists in memory because the screen itself never changes.
+      enter() prints a message confirming we arrived at the guest screen.
+      exit() prints a message confirming we are leaving the guest screen.
+      render() prints the welcome message and lists available actions
+      LOGIN and EXIT.
+      handleAction() is the only screen that handles LOGIN. Grabs
+      username, password, and ip from args, passes them to
+      AuthenticationContext.login(), and checks the result. If login
+      succeeds it sets the current user on the context then routes
+      STUDENT users to StudentDashboardViewState and FACULTY users to
+      FacultyDashboardViewState. If login fails it prints the failure
+      message. LOGOUT does nothing since we are already on the guest
+      screen. Unknown actions print an error message.
+
+- StudentDashboardViewState.java - Concrete State Class (Week 10)
+    - The main dashboard screen for logged in students. Requires
+      authentication — unauthenticated access redirects to guest.
+      Implemented as a stateless singleton.
+      enter() prints a welcome message when the student arrives
+      at their dashboard.
+      exit() prints a message confirming we are leaving the dashboard.
+      render() prints the dashboard header and lists available actions
+      NAVIGATE REGISTRATION, NAVIGATE TRANSCRIPT, and LOGOUT.
+      handleAction() handles NAVIGATE by checking args[0] to determine
+      which screen to go to. REGISTRATION navigates to
+      RegistrationViewState, TRANSCRIPT navigates to TranscriptViewState.
+      LOGOUT calls context.logout() which clears the current user,
+      clears the history stack, and returns to GuestViewState.
+      Unknown actions print an error message.
+
+- FacultyDashboardViewState.java - Concrete State Class (Week 10)
+    - The main dashboard screen for logged in faculty members. Requires
+      authentication — unauthenticated access redirects to guest.
+      Implemented as a stateless singleton.
+      enter() prints a welcome message when the faculty member arrives
+      at their dashboard.
+      exit() prints a message confirming we are leaving the dashboard.
+      render() prints the dashboard header and lists available actions
+      NAVIGATE PERMISSIONS and LOGOUT.
+      handleAction() handles NAVIGATE by checking args[0] to determine
+      which screen to go to. PERMISSIONS navigates to
+      PermissionManagementViewState. LOGOUT calls context.logout()
+      which clears the current user, clears the history stack, and
+      returns to GuestViewState. Faculty cannot navigate to student
+      screens because those actions are simply not handled here —
+      access control happens naturally through the State Pattern
+      without any extra permission checking code.
+      Unknown actions print an error message.
+
+- RegistrationViewState.java - Concrete State Class (Week 10)
+    - The registration screen where students can check the current
+      registration period status. Requires authentication —
+      unauthenticated access redirects to guest. Implemented as
+      a stateless singleton.
+      enter() prints a message confirming arrival at the registration
+      screen.
+      exit() prints a message confirming we are leaving the screen.
+      render() prints the screen header and lists available actions
+      CHECK_STATUS, BACK, and LOGOUT.
+      handleAction() handles CHECK_STATUS by grabbing semester from
+      args[0] and year from args[1], then calling
+      RegistrationPeriodContext.currentPeriod() which loads the
+      registration period from the database and auto-advances the
+      state if dates have passed. Prints the current state name so
+      the student can see whether registration is OPEN, CLOSED, LATE,
+      or NOT_OPEN. This is where the View Navigation State Machine
+      connects directly to the Registration Period State Machine —
+      two state machines working together. BACK calls context.back()
+      to return to the previous screen. LOGOUT calls context.logout()
+      to end the session. Unknown actions print an error message.
+
+- TranscriptViewState.java - Concrete State Class (Week 10)
+    - The transcript screen where students can view and order
+      transcripts. Requires authentication — unauthenticated access
+      redirects to guest. Implemented as a stateless singleton.
+      enter() prints a message confirming arrival at the transcript
+      screen.
+      exit() prints a message confirming we are leaving the screen.
+      render() prints the screen header and lists available actions
+      BACK and LOGOUT. Transcript viewing and ordering actions are
+      intentionally left as placeholders to be filled in during the
+      Template Method pattern sprint.
+      handleAction() handles BACK by calling context.back() to return
+      to the previous screen. LOGOUT calls context.logout() to end
+      the session. Unknown actions print an error message.
+
+- PermissionManagementViewState.java - Concrete State Class (Week 10)
+    - The screen where faculty can approve or deny waitlist permission
+      requests. Requires authentication — unauthenticated access
+      redirects to guest. Only reachable from FacultyDashboardViewState
+      since students do not have a NAVIGATE PERMISSIONS action available
+      to them. Implemented as a stateless singleton.
+      enter() prints a message confirming arrival at the permission
+      management screen.
+      exit() prints a message confirming we are leaving the screen.
+      render() prints the screen header and lists available actions
+      APPROVE, DENY, BACK, and LOGOUT.
+      handleAction() handles APPROVE by grabbing permissionId from
+      args[0], loading FacultyPermissionContext for that id, and
+      calling approve() which transitions the permission from
+      REQUESTED to APPROVED. DENY grabs permissionId from args[0]
+      and reason from args[1] and calls deny(reason) which transitions
+      it to DENIED. This is where the View Navigation State Machine
+      connects directly to the Faculty Permission State Machine.
+      BACK calls context.back() to return to the faculty dashboard.
+      LOGOUT calls context.logout() to end the session.
+      NOTE: FacultyPermissionContext import will show a red error
+      until LittleLeviathan's branch is merged into main. Error
+      will resolve automatically after fetch and pull.
+
+- LoginViewState.java - Concrete State Class (Week 10)
+    - Alias for GuestViewState — the login screen and the guest
+      screen are the same thing in this application. Implemented
+      as a stateless singleton.
+      Rather than duplicating all the guest screen logic every
+      method simply delegates directly to GuestViewState.INSTANCE.
+      enter() delegates to GuestViewState.INSTANCE.enter().
+      exit() delegates to GuestViewState.INSTANCE.exit().
+      render() delegates to GuestViewState.INSTANCE.render().
+      handleAction() delegates to GuestViewState.INSTANCE.handleAction().
+      This way navigating to LOGIN gives the exact same experience
+      as navigating to GUEST without any duplicated code.
+
+- StateFactory.java - UPDATED (Week 10)
+    - Added viewStateFor(String) method that maps all seven view
+      name strings to the correct ViewState singleton.
+      Handles: GUEST, LOGIN, STUDENT_DASHBOARD, FACULTY_DASHBOARD,
+      REGISTRATION, TRANSCRIPT, PERMISSION_MANAGEMENT.
+      Returns GuestViewState for null inputs. Throws
+      IllegalArgumentException for unknown view name strings.
+      Follows the exact same pattern as the existing
+      transcriptStateFor(), enrollmentStateFor(), and
+      registrationStateFor() methods already in this file.
+
+FIXES:
+- ViewContext.java - FIXED (Week 10)
+    - logout() method was calling navigateTo(GuestViewState.INSTANCE)
+      which was pushing the current state onto the history stack before
+      clearing it. Fixed by replacing the navigateTo() call with direct
+      state switching — calls exit() on current state, sets currentState
+      to GuestViewState, then calls enter() and render() directly.
+      This ensures the history stack is fully empty after logout.
+    - Added navigateToWithoutHistory() method. Used for login transitions
+      so GuestViewState does not get pushed onto the history stack when
+      a student or faculty member logs in. Without this fix back() from
+      the first authenticated screen would leave GuestViewState sitting
+      in the history stack instead of being empty.
+
+- GuestViewState.java - FIXED (Week 10)
+    - Updated handleAction() LOGIN case to call
+      context.navigateToWithoutHistory() instead of context.navigateTo()
+      when routing to StudentDashboardViewState or FacultyDashboardViewState
+      after successful login. This prevents GuestViewState from being
+      pushed onto the history stack during login, which was causing
+      test 7.2 to fail.
+
+- PermissionManagementViewState.java - UPDATED (Week 10)
+    - Commented out FacultyPermissionContext.load() calls in the APPROVE
+      and DENY cases of handleAction() because FacultyPermissionContext
+      does not exist in main yet — LittleLeviathan's branch has not been
+      merged. Added TODO comments on the commented lines so they are easy
+      to find and uncomment once their branch is merged and a fetch and
+      pull is done.
+    - Removed import for edu.advising.state.FacultyPermissionContext
+      for the same reason.
+
 
 Week 10 - Faculty Permission State Machine (Peer Code Review — Issue #29)
 ======================================
