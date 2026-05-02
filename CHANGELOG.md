@@ -288,6 +288,7 @@ Week 9 - Enrollment State Machine (Issue #32)
       EnrollmentContext. Fixed notificationManager field to be
       final. Fixed unchecked Map assignment warning in
       deserializeCommandData().
+
 - EnrollmentContext.java - FIXED (Week 9)
     - Made constructor public to allow unit tests to build an
       EnrollmentContext from a manually constructed Enrollment
@@ -311,6 +312,7 @@ Week 9 - Enrollment State Machine (Issue #32)
       all five status strings plus null and unknown inputs.
     - Updated buildEnrollment() helper to use sectionId 0
       so tests run without a real database section.
+
 
 Week 10 - View Navigation State Machine (Issue #34)
 ======================================
@@ -509,144 +511,43 @@ FIXES:
     - Removed import for edu.advising.state.FacultyPermissionContext
       for the same reason.
 
-Week 13 - GUI/JavaFX
+
+Week 10 - Faculty Permission State Machine (Peer Code Review — Issue #29)
 ======================================
+***Peer code review and database completion for UserStory
+[Faculty Permission to Add Waitlisted Students State Machine].
 
-- pom.xml - UPDATED
-    - Added javafx-controls and javafx-fxml version 21 dependencies
-      so the project has access to all JavaFX visual components
-    - Added javafx-maven-plugin so Maven knows how to launch the app
-      as a JavaFX application
-    - Removed test scope from H2 dependency so the database is
-      available at runtime not just during tests
+- RegisterCommand.java - UPDATED (Week 10)
+    - Added hasValidFacultyPermission() private method that queries
+      the faculty_permissions table by student_id and section_id.
+      Loads the FacultyPermissionContext for the found permission
+      which auto-expires it if past expiryDate. Returns true only
+      if isValid() returns true (APPROVED state).
+    - Updated execute() to call hasValidFacultyPermission() when
+      section is at capacity. If valid permission exists, bypasses
+      the capacity check and allows registration to proceed.
+      If no valid permission exists, registration still fails as
+      before with section full error message.
+    - Added imports for FacultyPermission, FacultyPermissionContext,
+      and List.
 
-- BetterAdvisorApp.java - CREATED
-    - Main entry point for the JavaFX application. Extends Application
-      so JavaFX knows where to start
-    - primaryStage holds the window, made static so any screen can
-      access it from anywhere
-    - viewContext is the navigation brain, made static so every screen
-      can call navigateTo() and handleAction() on it
-    - Sets up AuthenticationContext with BasicAuthentication strategy
-    - viewContext.start() initializes the state machine with
-      GuestViewState before the window appears
-    - stage.setScene(LoginScreen.getScene()) loads the login screen
-      into the window visually
-    - stage.show() makes the window appear on screen
-    - Added temporary test student and faculty user creation via
-      UserFactory since database starts empty each run
-
-- edu.advising.gui - PACKAGE CREATED
-    - New package to keep all GUI screen classes organized separately
-      from backend logic
-
-- LoginScreen.java - CREATED
-    - First visual screen the user sees, no User parameter since
-      nobody is logged in yet
-    - getScene() builds and returns a complete Scene — the full
-      contents of the window
-    - Label displays text on screen, TextField is the username input
-      box, PasswordField hides characters as user types
-    - Login button validates fields are not empty then fires
-      handleAction("LOGIN", username, password, ip) into existing
-      GuestViewState login logic
-    - VBox stacks everything vertically with 15px spacing and
-      dark background color
-
-- StudentDashboardScreen.java - CREATED
-    - Screen students land on after login, takes a User parameter
-      to display their name and ID
-    - HBox navBar lines buttons horizontally across the top with
-      darker background than content area
-    - Registration button fires handleAction("NAVIGATE", "REGISTRATION")
-      into existing StudentDashboardViewState
-    - Transcript button fires handleAction("NAVIGATE", "TRANSCRIPT")
-      same way
-    - Logout button calls viewContext.logout(), styled red to signal
-      destructive action
-    - VBox.setVgrow(contentArea, Priority.ALWAYS) stretches content
-      area to fill all space below nav bar
-
-- FacultyDashboardScreen.java - CREATED
-    - Screen faculty land on after login, identical structure to
-      StudentDashboardScreen but faculty specific
-    - Only has Permission Management nav button since Registration
-      and Transcript are student only features
-    - Permission Management button fires handleAction("NAVIGATE",
-      "PERMISSION_MANAGEMENT") into existing FacultyDashboardViewState
-    - Logout button same red style and same logout() call as
-      student dashboard
-
-- RegistrationScreen.java - CREATED
-    - Sub-screen navigated to from Student Dashboard, takes a
-      User parameter
-    - Search bar built with TextField and blue Search button side
-      by side in an HBox inside the VBox
-    - Status label shows current registration period status in green,
-      will connect to RegistrationPeriodContext in a future update
-    - Placeholder label shows where course results will appear, will
-      be replaced with real database results in a future update
-    - Back button calls viewContext.back() which pops the history
-      stack and returns to Student Dashboard automatically
-
-- TranscriptScreen.java - CREATED
-    - Sub-screen navigated to from Student Dashboard, takes a
-      User parameter
-    - Introduces dynamic content updating — buttons change label
-      text on the current screen instead of navigating away
-    - View Unofficial Transcript button updates placeholderLabel
-      with student name and ID from user object
-    - Request Official Transcript button updates statusLabel with
-      confirmation, will connect to TranscriptRequestContext in
-      a future update
-    - Two action buttons placed side by side using HBox buttonRow
-      nested inside the VBox content area
-    - Status label starts empty and updates dynamically when
-      buttons are clicked
-
-- PermissionManagementScreen.java - CREATED
-    - Sub-screen navigated to from Faculty Dashboard, takes a
-      User parameter
-    - Most interactive screen — two input fields and two action
-      buttons with full validation
-    - studentIdField and sectionIdField collect which student and
-      section to process permission for
-    - Both buttons validate fields are not empty before acting,
-      status label turns red and returns early if empty
-    - Approve button styled green, fires handleAction(
-      "APPROVE_PERMISSION", studentId, sectionId), clears fields after
-    - Deny button styled red, fires handleAction(
-      "DENY_PERMISSION", studentId, sectionId), clears fields after
-    - Status label changes both text and color dynamically depending
-      on success or failure
-
-- ViewContext.java - UPDATED
-    - Added updateScene() private method to bridge the state machine
-      and JavaFX visual layer
-    - Called at the end of navigateTo(), navigateToWithoutHistory(),
-      and logout() every time state changes
-    - Uses newState.getViewName() to match state name string to the
-      correct JavaFX screen
-    - GUEST and LOGIN both map to LoginScreen since LoginViewState
-      delegates to GuestViewState
-    - Each screen case passes currentUser so the screen can
-      personalize the display
-    - default case returns early without changing screen to prevent
-      crashes for states without a GUI yet
-    - Platform.runLater() wraps setScene() because JavaFX requires
-      visual updates on the JavaFX thread
+- Week6Test.java - UPDATED (Week 10)
+    - Added imports for RegisterCommand and Section.
+    - Added GROUP 24 to header comment list.
+    - Added runGroup24() call in main() method.
+    - Added GROUP 24 — RegisterCommand faculty permission capacity
+      bypass. 4 integration tests:
+      24-1: registration fails when section is full and no
+      permission exists.
+      24-2: permission status is APPROVED in DB after approve().
+      24-3: registration succeeds when section is full but valid
+      APPROVED permission exists.
+      24-4: registration fails when permission is APPROVED but
+      past expiryDate (auto-expires to EXPIRED on load).
 
 FIXES:
-- AuthenticationContext required a strategy in constructor, fixed
-  by passing new BasicAuthentication() directly
-- viewContext.start() had to be added back before stage.setScene()
-  so currentState is not null when login button fires
-- H2 scope changed from test to runtime so database driver loads
-  when app runs
-- Lambda effectively final error fixed in updateScene() by declaring
-  finalScene without null and assigning once in switch
-- logout() was missing updateScene() call so screen stayed on
-  dashboard visually after logout, fixed by adding
-  updateScene(GuestViewState.INSTANCE)
-- Database file locking fixed by deleting advising.mv.db and
-  advising.trace.db then running Maven clean before each javafx:run
+- Java 17 - FIXED (Week 10)
+    - Windows update wiped Java PATH variable causing Maven to
+      use Java 11 instead of Java 17. Downloaded and reinstalled
+      Java 17 to fix version mismatch error:
+      "class file version 61.0, recognizes up to 55.0"
