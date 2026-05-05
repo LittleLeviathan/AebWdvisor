@@ -19,49 +19,18 @@ package edu.advising.commands;
 //        it only creates a command and hands it to the executor.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// LIFECYCLE — One CommandExecutor per user session:
+// LIFECYCLE — Singleton: one shared instance for the whole session.
 //
-//   // When user logs in:
-//   CommandExecutor executor = new CommandExecutor(loggedInUser.getId());
-//   session.setCommandExecutor(executor);
+//   // At login:
+//   CommandExecutor.init(loggedInUser.getId());
 //
-//   // Store on the session so any screen can retrieve it:
-//   session.getCommandExecutor().execute(new RegisterCommand(student, section));
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// GUI BUTTON WIRING (Swing example, works the same for JavaFX/Web):
-//
-//   // "Register" button
-//   registerButton.addActionListener(e -> {
-//       Section selected = sectionTable.getSelectedSection();
-//       executor.execute(new RegisterCommand(student, selected));
-//       undoButton.setEnabled(executor.canUndo());
-//       redoButton.setEnabled(executor.canRedo());
-//       refreshScheduleView();
-//   });
-//
-//   // "Undo" button (always in the toolbar)
-//   undoButton.addActionListener(e -> {
-//       undoButton.setToolTipText("Undo: " + executor.peekUndoDescription());
-//       executor.undo();
-//       undoButton.setEnabled(executor.canUndo());
-//       redoButton.setEnabled(executor.canRedo());
-//       refreshScheduleView();
-//   });
-//
-//   // "Redo" button
-//   redoButton.addActionListener(e -> {
-//       executor.redo();
-//       undoButton.setEnabled(executor.canUndo());
-//       redoButton.setEnabled(executor.canRedo());
-//       refreshScheduleView();
-//   });
+//   // From anywhere in the app:
+//   CommandExecutor.getInstance().execute(new RegisterCommand(student, section));
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // OPEN/CLOSED PRINCIPLE:
 //   Adding a new user action (e.g. Week 8's TranscriptRequestCommand) requires
 //   ONLY creating a new BaseCommand subclass. CommandExecutor never changes.
-//   This is the real power of the Command Pattern — the invoker is sealed.
 //
 // ============================================================================
 
@@ -69,26 +38,51 @@ import java.util.List;
 
 public class CommandExecutor {
 
+    // -------------------------------------------------------------------------
+    // Singleton — single shared instance
+    // -------------------------------------------------------------------------
+
+    private static volatile CommandExecutor instance;
+
     private final CommandHistory history;
 
-    // -------------------------------------------------------------------------
-    // Construction
-    // -------------------------------------------------------------------------
-
-    /**
-     * Create an executor for a specific user session.
-     * @param userId The logged-in user's numeric primary key.
-     */
-    public CommandExecutor(int userId) {
+    private CommandExecutor(int userId) {
         this.history = new CommandHistory(userId);
     }
 
-    /**
-     * Convenience constructor when you already have a CommandHistory instance
-     * (e.g. for testing with a mock history).
-     */
-    public CommandExecutor(CommandHistory history) {
+    private CommandExecutor(CommandHistory history) {
         this.history = history;
+    }
+
+    /**
+     * Initialise the singleton for a logged-in user session.
+     * Call once at login before any calls to getInstance().
+     * @param userId The logged-in user's numeric primary key.
+     */
+    public static synchronized void init(int userId) {
+        instance = new CommandExecutor(userId);
+    }
+
+    /**
+     * Initialise with a provided CommandHistory — used by unit tests
+     * to inject a mock history without requiring a real database.
+     */
+    public static synchronized void initForTesting(CommandHistory history) {
+        instance = new CommandExecutor(history);
+    }
+
+    /**
+     * Returns the single shared CommandExecutor for this session.
+     * @throws IllegalStateException if init() has not been called yet.
+     */
+    public static synchronized CommandExecutor getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException(
+                    "CommandExecutor has not been initialized. " +
+                            "Call CommandExecutor.init(userId) at login before using getInstance()."
+            );
+        }
+        return instance;
     }
 
     // -------------------------------------------------------------------------
@@ -98,14 +92,9 @@ public class CommandExecutor {
     /**
      * Execute a command and record it in history.
      *
-     * This is the ONLY method the UI/Service layer should call to trigger
-     * business logic. The caller creates the appropriate Command object,
-     * passes it here, and then queries wasSuccessful() on the command
-     * (or canUndo() on the executor) to update the UI state.
-     *
      * Example:
      *   RegisterCommand cmd = new RegisterCommand(student, section);
-     *   executor.execute(cmd);
+     *   CommandExecutor.getInstance().execute(cmd);
      *   if (!cmd.wasSuccessful()) showErrorDialog(cmd.getErrorMessage());
      *
      * @param command Any concrete BaseCommand subclass.
@@ -138,20 +127,12 @@ public class CommandExecutor {
     // State Queries — for enabling/disabling toolbar buttons
     // -------------------------------------------------------------------------
 
-    /**
-     * @return true if the Undo button should be enabled.
-     *
-     * GUI Usage:
-     *   undoButton.setEnabled(executor.canUndo());
-     *   undoButton.setToolTipText("Undo: " + executor.peekUndoDescription());
-     */
+    /** @return true if the Undo button should be enabled. */
     public boolean canUndo() {
         return history.canUndo();
     }
 
-    /**
-     * @return true if the Redo button should be enabled.
-     */
+    /** @return true if the Redo button should be enabled. */
     public boolean canRedo() {
         return history.canRedo();
     }
@@ -164,9 +145,7 @@ public class CommandExecutor {
         return history.peekUndoDescription();
     }
 
-    /**
-     * Human-readable label for the next action that would be redone.
-     */
+    /** Human-readable label for the next action that would be redone. */
     public String peekRedoDescription() {
         return history.peekRedoDescription();
     }
@@ -177,11 +156,7 @@ public class CommandExecutor {
 
     /**
      * Returns the live in-session undo stack (most recent first).
-     * Useful for a "Recent Actions" panel that lists what can currently be undone.
-     *
-     * GUI Usage:
-     *   List<BaseCommand> recent = executor.getSessionHistory();
-     *   recentActionsPanel.populate(recent);
+     * Useful for a "Recent Actions" panel in the UI.
      */
     public List<BaseCommand> getSessionHistory() {
         return history.getUndoStack();
@@ -189,13 +164,6 @@ public class CommandExecutor {
 
     /**
      * Load full audit history from the database for the current user.
-     * Unlike getSessionHistory(), this survives session boundaries and
-     * returns ALL historical records up to `limit`.
-     *
-     * GUI Usage (Transaction History screen):
-     *   List<CommandRecord> records = executor.getAuditHistory(50);
-     *   transactionTable.setModel(new CommandRecordTableModel(records));
-     *
      * @param limit Maximum records to return (most recent first).
      */
     public List<CommandRecord> getAuditHistory(int limit) {
