@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
 
 public class CourseCardComponent {
     private final Section section;
@@ -84,7 +85,7 @@ public class CourseCardComponent {
         seatsLabel.setFont(Font.font("Arial", 12));
         seatsLabel.setTextFill(seatsColor);
 
-        // "View Details" button — wired up to nothing yet, that's the next user story
+        // "View Details" button shows the corresponding CourseDetailDialog when pressed
         Button detailsBtn = new Button("View Details");
         detailsBtn.setStyle(
                 "-fx-background-color: transparent;" +
@@ -95,6 +96,10 @@ public class CourseCardComponent {
                         "-fx-padding: 4px 12px;" +
                         "-fx-cursor: hand;"
         );
+        detailsBtn.setOnAction(e -> {
+            Stage owner = (Stage) detailsBtn.getScene().getWindow();
+            CourseDetailDialog.show(owner, section);
+        });
 
         Region bottomSpacer = new Region();
         HBox.setHgrow(bottomSpacer, Priority.ALWAYS);
