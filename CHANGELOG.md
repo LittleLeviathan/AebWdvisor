@@ -313,6 +313,7 @@ Week 9 - Enrollment State Machine (Issue #32)
     - Updated buildEnrollment() helper to use sectionId 0
       so tests run without a real database section.
 
+
 Week 10 - View Navigation State Machine (Issue #34)
 ======================================
 ***working on UserStory [Web and JavaFX View Navigation State Machine].

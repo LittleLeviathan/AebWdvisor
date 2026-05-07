@@ -79,16 +79,25 @@ public class StateFactory {
             return GuestViewState.INSTANCE;
         }
         switch (viewName) {
-            case "GUEST":                 return GuestViewState.INSTANCE;
-            case "LOGIN":                 return LoginViewState.INSTANCE;
-            case "STUDENT_DASHBOARD":     return StudentDashboardViewState.INSTANCE;
-            case "FACULTY_DASHBOARD":     return FacultyDashboardViewState.INSTANCE;
-            case "REGISTRATION":          return RegistrationViewState.INSTANCE;
-            case "TRANSCRIPT":            return TranscriptViewState.INSTANCE;
-            case "PERMISSION_MANAGEMENT": return PermissionManagementViewState.INSTANCE;
+            case "GUEST":
+                return GuestViewState.INSTANCE;
+            case "LOGIN":
+                return LoginViewState.INSTANCE;
+            case "STUDENT_DASHBOARD":
+                return StudentDashboardViewState.INSTANCE;
+            case "FACULTY_DASHBOARD":
+                return FacultyDashboardViewState.INSTANCE;
+            case "REGISTRATION":
+                return RegistrationViewState.INSTANCE;
+            case "TRANSCRIPT":
+                return TranscriptViewState.INSTANCE;
+            case "PERMISSION_MANAGEMENT":
+                return PermissionManagementViewState.INSTANCE;
             default:
                 throw new IllegalArgumentException(
                         "Unknown view name: " + viewName);
+        }
+    }
 
     /**
      * Maps a faculty waitlist permission status string from the DB
