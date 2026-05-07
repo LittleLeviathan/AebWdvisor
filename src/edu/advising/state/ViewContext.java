@@ -4,6 +4,7 @@ import edu.advising.auth.AuthenticationContext;
 import edu.advising.users.User;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import edu.advising.BetterAdvisorApp;
 
 /**
  * ViewContext - State Pattern Context (Week 6 - User Story #34)
@@ -58,6 +59,7 @@ public class ViewContext {
         currentState = newState;
         currentState.enter(this);
         currentState.render();
+        updateScene(newState);
     }
 
     /**
@@ -96,6 +98,7 @@ public class ViewContext {
         currentState = GuestViewState.INSTANCE;
         currentState.enter(this);
         currentState.render();
+        updateScene(GuestViewState.INSTANCE);
     }
 
     /**
@@ -124,6 +127,40 @@ public class ViewContext {
         currentState = newState;
         currentState.enter(this);
         currentState.render();
+        updateScene(newState);
+    }
+    private void updateScene(ViewState newState) {
+        if (BetterAdvisorApp.primaryStage == null) return;
+
+        javafx.scene.Scene finalScene;
+
+        switch (newState.getViewName()) {
+            case "GUEST":
+            case "LOGIN":
+                finalScene = edu.advising.gui.LoginScreen.getScene();
+                break;
+            case "STUDENT_DASHBOARD":
+                finalScene = edu.advising.gui.StudentDashboardScreen.getScene(currentUser);
+                break;
+            case "FACULTY_DASHBOARD":
+                finalScene = edu.advising.gui.FacultyDashboardScreen.getScene(currentUser);
+                break;
+            case "REGISTRATION":
+                finalScene = edu.advising.gui.RegistrationScreen.getScene(currentUser);
+                break;
+            case "TRANSCRIPT":
+                finalScene = edu.advising.gui.TranscriptScreen.getScene(currentUser);
+                break;
+            case "PERMISSION_MANAGEMENT":
+                finalScene = edu.advising.gui.PermissionManagementScreen.getScene(currentUser);
+                break;
+            default:
+                return;
+        }
+
+        javafx.application.Platform.runLater(() -> {
+            BetterAdvisorApp.primaryStage.setScene(finalScene);
+        });
     }
 
     // ----------------------------------------------------------------
