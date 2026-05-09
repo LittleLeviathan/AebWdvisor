@@ -40,6 +40,9 @@ public class Section {
     private String room;
     @Column(name = "status")
     private String status;  //OPEN, CLOSED, CANCELLED
+    private String deliveryMode; // ONLINE, IN_PERSON, HYBRID — not a DB column, in-memory only
+    private String dayOfWeek;    // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY — in-memory only
+    private String startTime;    // e.g. "08:00", "13:30" — in-memory only
     @ManyToOne(targetEntity = Course.class, joinColumn = "course_id")
     private Course course; // Cached object representing this sections courses.
     @ManyToOne(targetEntity = Faculty.class, joinColumn = "faculty_id")
@@ -289,6 +292,15 @@ public class Section {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public String getDeliveryMode() { return deliveryMode; }
+    public void setDeliveryMode(String deliveryMode) { this.deliveryMode = deliveryMode; }
+
+    public String getDayOfWeek() { return dayOfWeek; }
+    public void setDayOfWeek(String dayOfWeek) { this.dayOfWeek = dayOfWeek; }
+
+    public String getStartTime() { return startTime; }
+    public void setStartTime(String startTime) { this.startTime = startTime; }
 
     @Override
     public String toString() {

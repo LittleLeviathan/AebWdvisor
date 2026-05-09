@@ -1,6 +1,10 @@
 package edu.advising.iterator;
 
 import edu.advising.commands.Enrollment;
+import edu.advising.commands.Section;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ByDeliveryModeIterator implements ScheduleIterator {
@@ -10,25 +14,36 @@ public class ByDeliveryModeIterator implements ScheduleIterator {
     private int position;
 
     public ByDeliveryModeIterator(List<Enrollment> enrollments, String mode) {
-        // Filter the enrollments list to only include sections matching the given mode
-        // (e.g. ONLINE, IN_PERSON, HYBRID)
-        // Store the filtered list and set position to 0
+        this.mode = mode;
+        this.enrollments = new ArrayList<>();
+        for (Enrollment e : enrollments) {
+            try {
+                Section s = e.getSection();
+                if (s != null && mode != null
+                        && mode.equalsIgnoreCase(s.getDeliveryMode())) {
+                    this.enrollments.add(e);
+                }
+            } catch (SQLException ex) {
+                // skip enrollments whose section cannot be loaded
+            }
+        }
+        this.position = 0;
     }
 
     @Override
     public boolean hasNext() {
-        // Return true if position is less than the size of the filtered enrollments list
+        return position < enrollments.size();
     }
 
     @Override
     public Enrollment next() {
-        // Get the enrollment at the current position
-        // Advance position by one
-        // Return the enrollment
+        Enrollment e = enrollments.get(position);
+        position++;
+        return e;
     }
 
     @Override
     public void reset() {
-        // Set position back to 0
+        position = 0;
     }
 }

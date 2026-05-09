@@ -1,6 +1,8 @@
 package edu.advising.iterator;
 
 import edu.advising.commands.Enrollment;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class ByStatusIterator implements ScheduleIterator {
@@ -10,25 +12,31 @@ public class ByStatusIterator implements ScheduleIterator {
     private int position;
 
     public ByStatusIterator(List<Enrollment> enrollments, String status) {
-        // Filter the enrollments list to only include enrollments matching the given status
-        // (e.g. ENROLLED, DROPPED, WITHDRAWN)
-        // Store the filtered list and set position to 0
+        this.status = status;
+        this.enrollments = new ArrayList<>();
+        for (Enrollment e : enrollments) {
+            if (e.getStatus() != null && status != null
+                    && status.equalsIgnoreCase(e.getStatus())) {
+                this.enrollments.add(e);
+            }
+        }
+        this.position = 0;
     }
 
     @Override
     public boolean hasNext() {
-        // Return true if position is less than the size of the filtered enrollments list
+        return position < enrollments.size();
     }
 
     @Override
     public Enrollment next() {
-        // Get the enrollment at the current position
-        // Advance position by one
-        // Return the enrollment
+        Enrollment e = enrollments.get(position);
+        position++;
+        return e;
     }
 
     @Override
     public void reset() {
-        // Set position back to 0
+        position = 0;
     }
 }

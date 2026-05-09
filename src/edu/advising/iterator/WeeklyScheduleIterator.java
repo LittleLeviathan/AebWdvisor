@@ -1,6 +1,12 @@
 package edu.advising.iterator;
 
 import edu.advising.commands.Enrollment;
+import edu.advising.commands.Section;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 public class WeeklyScheduleIterator implements ScheduleIterator {
@@ -8,25 +14,50 @@ public class WeeklyScheduleIterator implements ScheduleIterator {
     private List<Enrollment> enrollments;
     private int position;
 
+    private static final List<String> DAY_ORDER = Arrays.asList(
+            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"
+    );
+
     public WeeklyScheduleIterator(List<Enrollment> enrollments) {
-        // Sort the enrollments by day of week (Mon-Fri) then by start time
-        // Store the sorted list and set position to 0
+        this.enrollments = new ArrayList<>(enrollments);
+        this.enrollments.sort(Comparator
+                .comparingInt((Enrollment e) -> {
+                    try {
+                        Section s = e.getSection();
+                        if (s == null || s.getDayOfWeek() == null) return Integer.MAX_VALUE;
+                        int idx = DAY_ORDER.indexOf(s.getDayOfWeek().toUpperCase());
+                        return idx == -1 ? Integer.MAX_VALUE : idx;
+                    } catch (SQLException ex) {
+                        return Integer.MAX_VALUE;
+                    }
+                })
+                .thenComparing(e -> {
+                    try {
+                        Section s = e.getSection();
+                        if (s == null || s.getStartTime() == null) return "";
+                        return s.getStartTime();
+                    } catch (SQLException ex) {
+                        return "";
+                    }
+                })
+        );
+        this.position = 0;
     }
 
     @Override
     public boolean hasNext() {
-        // Return true if position is less than the size of the enrollments list
+        return position < enrollments.size();
     }
 
     @Override
     public Enrollment next() {
-        // Get the enrollment at the current position
-        // Advance position by one
-        // Return the enrollment
+        Enrollment e = enrollments.get(position);
+        position++;
+        return e;
     }
 
     @Override
     public void reset() {
-        // Set position back to 0
+        position = 0;
     }
 }
