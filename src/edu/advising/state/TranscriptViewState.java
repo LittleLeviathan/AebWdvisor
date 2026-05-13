@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * TranscriptViewState - Concrete State (Week 6 - User Story #34)
  * The transcript screen where students can view their transcript.
@@ -51,7 +53,7 @@ public class TranscriptViewState implements ViewState {
      * - Otherwise print "Unknown action: " + action
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "BACK":
                 context.back();

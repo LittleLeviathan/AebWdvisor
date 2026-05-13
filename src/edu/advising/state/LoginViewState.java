@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * LoginViewState - Concrete State (Week 6 - User Story #34)
  * Alias for GuestViewState — the login screen and guest screen
@@ -43,7 +45,7 @@ public class LoginViewState implements ViewState {
      * Delegates to GuestViewState.INSTANCE.handleAction()
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         GuestViewState.INSTANCE.handleAction(context, action, args);
     }
 

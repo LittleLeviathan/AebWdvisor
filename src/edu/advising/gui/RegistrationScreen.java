@@ -18,6 +18,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.sql.SQLException;
 import java.util.List;
 
 public class RegistrationScreen {
@@ -92,7 +93,11 @@ public class RegistrationScreen {
         );
 
         backBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.back();
+            try {
+                BetterAdvisorApp.viewContext.back();
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Nav bar

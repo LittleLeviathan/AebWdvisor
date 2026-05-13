@@ -13,6 +13,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.sql.SQLException;
+
 public class LoginScreen {
 
     public static Scene getScene() {
@@ -67,7 +69,11 @@ public class LoginScreen {
             }
 
             // Fire the LOGIN action through your existing ViewContext
-            BetterAdvisorApp.viewContext.handleAction("LOGIN", username, password, "127.0.0.1");
+            try {
+                BetterAdvisorApp.viewContext.handleAction("LOGIN", username, password, "127.0.0.1");
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Stack everything vertically

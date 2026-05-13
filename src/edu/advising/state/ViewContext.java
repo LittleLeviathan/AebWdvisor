@@ -2,6 +2,8 @@ package edu.advising.state;
 
 import edu.advising.auth.AuthenticationContext;
 import edu.advising.users.User;
+
+import java.sql.SQLException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import edu.advising.BetterAdvisorApp;
@@ -47,7 +49,7 @@ public class ViewContext {
      * - Call enter() on the new state
      * - Call render() on the new state
      */
-    public void navigateTo(ViewState newState) {
+    public void navigateTo(ViewState newState) throws SQLException, IllegalAccessException {
         if (newState.requiresAuthentication() && currentUser == null) {
             navigateTo(GuestViewState.INSTANCE);
             return;
@@ -71,7 +73,7 @@ public class ViewContext {
      * - Call enter() on the previous state
      * - Call render() on the previous state
      */
-    public void back() {
+    public void back() throws SQLException, IllegalAccessException {
         if (history.isEmpty()) {
             System.out.println("No previous view to go back to.");
             return;
@@ -90,7 +92,7 @@ public class ViewContext {
      * - Clear the history stack
      * - Navigate to GuestViewState.INSTANCE
      */
-    public void logout() {
+    public void logout() throws SQLException, IllegalAccessException {
         currentUser = null;
         history.clear();
         if (currentState != null) {
@@ -106,7 +108,7 @@ public class ViewContext {
      * Delegates the action to the current state to handle
      * - Call currentState.handleAction() with the action and args
      */
-    public void handleAction(String action, String... args) {
+    public void handleAction(String action, String... args) throws SQLException, IllegalAccessException {
         currentState.handleAction(this, action, args);
     }
 
@@ -121,7 +123,7 @@ public class ViewContext {
      * Navigates to a new state without pushing current state to history.
      * Used for login transitions so GuestViewState doesn't end up in history.
      */
-    public void navigateToWithoutHistory(ViewState newState) {
+    public void navigateToWithoutHistory(ViewState newState) throws SQLException, IllegalAccessException {
         if (currentState != null) {
             currentState.exit(this);
         }
@@ -130,7 +132,7 @@ public class ViewContext {
         currentState.render();
         updateScene(newState);
     }
-    private void updateScene(ViewState newState) {
+    private void updateScene(ViewState newState) throws SQLException, IllegalAccessException {
         if (BetterAdvisorApp.primaryStage == null) return;
 
         javafx.scene.Scene finalScene;

@@ -20,13 +20,15 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
 
 public class StudentDashboardScreen {
 
     public StudentDashboardScreen() throws SQLException {
     }
 
-    public static Scene getScene(User user) {
+    public static Scene getScene(User user) throws SQLException, IllegalAccessException {
 
         // Welcome header
         Label welcomeLabel = new Label("Welcome, " + user.getFirstName() + "!");
@@ -65,20 +67,36 @@ public class StudentDashboardScreen {
 
         // Button actions - wire into existing ViewContext
         registrationBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "REGISTRATION");
+            try {
+                BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "REGISTRATION");
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         transcriptBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "TRANSCRIPT");
+            try {
+                BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "TRANSCRIPT");
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         scheduleBtn.setOnAction(e ->{
 
-            BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "SCHEDULE");
+            try {
+                BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "SCHEDULE");
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         logoutBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.logout();
+            try {
+                BetterAdvisorApp.viewContext.logout();
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Nav bar across the top
@@ -106,20 +124,15 @@ public class StudentDashboardScreen {
         VBox layout = new VBox();
         layout.getChildren().addAll(navBar, contentArea);
 
-        return new Scene(layout, 900, 650);
-    }
 
-
-
-    private static void testEnrollments(User user) throws SQLException, IllegalAccessException {
+        /// TEST
         Enrollment fa2025 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY", "09:00", "ENROLLED", user);
         Enrollment sp2025 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "TUESDAY", "13:00", "ENROLLED", user);
         Enrollment su2024 = buildEnrollment(3, "SU", 2024, "HYBRID",    "WEDNESDAY", "10:00", "DROPPED", user);
         Enrollment sp2024 = buildEnrollment(4, "SP", 2024, "ONLINE",    "THURSDAY", "08:00", "ENROLLED", user);
-        DatabaseManager.getInstance().upsert(fa2025);
-        DatabaseManager.getInstance().upsert(sp2025);
-        DatabaseManager.getInstance().upsert(su2024);
-        DatabaseManager.getInstance().upsert(sp2024);
+        user.setSections(Arrays.asList(fa2025.getSection(), sp2025.getSection(), su2024.getSection(), sp2024.getSection()));
+
+        return new Scene(layout, 900, 650);
     }
 
     private static Enrollment buildEnrollment(int id, String semester, int year,

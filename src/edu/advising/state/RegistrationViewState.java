@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * RegistrationViewState - Concrete State (Week 6 - User Story #34)
  * The registration screen where students can check registration status.
@@ -55,7 +57,7 @@ public class RegistrationViewState implements ViewState {
      * - Otherwise print "Unknown action: " + action
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "CHECK_STATUS":
                 if (args.length >= 2) {

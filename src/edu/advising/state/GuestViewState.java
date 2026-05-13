@@ -3,6 +3,8 @@ package edu.advising.state;
 import edu.advising.auth.AuthenticationResult;
 import edu.advising.users.User;
 
+import java.sql.SQLException;
+
 /**
  * GuestViewState - Concrete State (Week 6 - User Story #34)
  * The default view when no user is logged in.
@@ -60,7 +62,7 @@ public class GuestViewState implements ViewState {
      * - If action is "LOGOUT" do nothing, already on guest screen
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "LOGIN":
                 String username = args[0];

@@ -129,6 +129,9 @@ public class User {
         return null;
     }
 
+    public void setSections(List<Section> sections) throws SQLException, IllegalAccessException {
+    }
+
     public String getFullName() {
         return firstName + " " + lastName;
     }

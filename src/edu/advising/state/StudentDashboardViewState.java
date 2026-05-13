@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * StudentDashboardViewState - Concrete State (Week 6 - User Story #34)
  * The main dashboard screen for logged in students.
@@ -53,7 +55,7 @@ public class StudentDashboardViewState implements ViewState {
      * - Otherwise print "Unknown action: " + action
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "NAVIGATE":
                 if (args.length > 0 && "REGISTRATION".equals(args[0])) {

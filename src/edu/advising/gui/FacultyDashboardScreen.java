@@ -14,6 +14,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.sql.SQLException;
+
 public class FacultyDashboardScreen {
 
     public static Scene getScene(User user) {
@@ -50,11 +52,19 @@ public class FacultyDashboardScreen {
 
         // Button actions
         permissionBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "PERMISSION_MANAGEMENT");
+            try {
+                BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "PERMISSION_MANAGEMENT");
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         logoutBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.logout();
+            try {
+                BetterAdvisorApp.viewContext.logout();
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Nav bar

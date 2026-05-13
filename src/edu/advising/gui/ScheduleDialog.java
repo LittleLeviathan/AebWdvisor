@@ -82,7 +82,7 @@ public class ScheduleDialog {
         content.getChildren().addAll(header, new Separator());
         while (iterator.hasNext()){
             Section s = iterator.next();
-            content.getChildren().add(sectionHeading(s.getCourseCode()+" "+s.getCourseName()));
+            content.getChildren().add(sectionHeading("TEST COURSE CODE, TEST COURSE NAME"));
             content.getChildren().addAll(detailRow("Semester:", s.getSemester()), detailRow("Status:", s.getStatus()),
                     detailRow("Meeting Information:", s.getDeliveryMode()+" "+s.getDayOfWeek()+" "+s.getStartTime() +" Room: "+s.getRoom()));
             content.getChildren().add(new Separator());

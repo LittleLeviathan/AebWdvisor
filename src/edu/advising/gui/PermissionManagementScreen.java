@@ -15,6 +15,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.sql.SQLException;
+
 public class PermissionManagementScreen {
 
     public static Scene getScene(User user) {
@@ -81,9 +83,13 @@ public class PermissionManagementScreen {
                 return;
             }
 
-            BetterAdvisorApp.viewContext.handleAction(
-                    "APPROVE_PERMISSION", studentId, sectionId
-            );
+            try {
+                BetterAdvisorApp.viewContext.handleAction(
+                        "APPROVE_PERMISSION", studentId, sectionId
+                );
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
             statusLabel.setTextFill(Color.LIGHTGREEN);
             statusLabel.setText("Permission approved for student " + studentId +
                     " in section " + sectionId + ".");
@@ -101,9 +107,13 @@ public class PermissionManagementScreen {
                 return;
             }
 
-            BetterAdvisorApp.viewContext.handleAction(
-                    "DENY_PERMISSION", studentId, sectionId
-            );
+            try {
+                BetterAdvisorApp.viewContext.handleAction(
+                        "DENY_PERMISSION", studentId, sectionId
+                );
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
             statusLabel.setTextFill(Color.RED);
             statusLabel.setText("Permission denied for student " + studentId +
                     " in section " + sectionId + ".");
@@ -127,7 +137,11 @@ public class PermissionManagementScreen {
         );
 
         backBtn.setOnAction(e -> {
-            BetterAdvisorApp.viewContext.back();
+            try {
+                BetterAdvisorApp.viewContext.back();
+            } catch (SQLException | IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Nav bar

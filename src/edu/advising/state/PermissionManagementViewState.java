@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * PermissionManagementViewState - Concrete State (Week 6 - User Story #34)
  * The screen where faculty can approve or deny waitlist permission requests.
@@ -58,7 +60,7 @@ public class PermissionManagementViewState implements ViewState {
      * - Otherwise print "Unknown action: " + action
      */
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "APPROVE":
                 if (args.length >= 1) {

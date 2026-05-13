@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 public class StudentScheduleViewState implements ViewState {
 
     public static final StudentScheduleViewState INSTANCE = new StudentScheduleViewState();
@@ -23,7 +25,7 @@ public class StudentScheduleViewState implements ViewState {
     }
 
     @Override
-    public void handleAction(ViewContext context, String action, String... args) {
+    public void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException {
         switch (action) {
             case "BACK":
                 context.back();

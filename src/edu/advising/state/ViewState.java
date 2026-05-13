@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import java.sql.SQLException;
+
 /**
  * ViewState - State Pattern Interface (Week 6 - User Story #34)
  * Represents a single screen/view in the portal navigation system.
@@ -23,7 +25,7 @@ public interface ViewState {
     // Handles user actions on this view
     // - Check what action was requested (LOGIN, NAVIGATE, LOGOUT, etc.)
     // - Delegate to the appropriate method or context
-    void handleAction(ViewContext context, String action, String... args);
+    void handleAction(ViewContext context, String action, String... args) throws SQLException, IllegalAccessException;
 
     // Returns the name of this view (ex. "GUEST", "STUDENT_DASHBOARD")
     String getViewName();
