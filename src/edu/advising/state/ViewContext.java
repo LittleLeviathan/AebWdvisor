@@ -81,6 +81,7 @@ public class ViewContext {
         currentState = previous;
         currentState.enter(this);
         currentState.render();
+        updateScene(currentState);
     }
 
     /**

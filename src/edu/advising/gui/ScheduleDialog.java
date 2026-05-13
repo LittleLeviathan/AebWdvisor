@@ -1,12 +1,9 @@
 package edu.advising.gui;
 
-import edu.advising.commands.Course;
 import edu.advising.commands.Section;
-import edu.advising.iterator.BySemesterIterator;
-import edu.advising.iterator.ScheduleGenerator;
 import edu.advising.iterator.ScheduleIterator;
 import edu.advising.iterator.StudentSchedule;
-import edu.advising.users.Faculty;
+import edu.advising.users.Student;
 import edu.advising.users.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -29,13 +26,7 @@ import java.sql.SQLException;
 
 public class ScheduleDialog {
 
-    User user;
-
-    public ScheduleDialog(User user){
-        this.user = user;
-    }
-
-    public static void show(Stage owner, StudentSchedule studentSchedule) throws SQLException {
+    public static void show(Stage owner, StudentSchedule studentSchedule, ScheduleIterator iterator, Student student) throws SQLException {
         Stage dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
         dialog.initOwner(owner);
@@ -58,8 +49,12 @@ public class ScheduleDialog {
         title.setTextFill(Color.WHITE);
         title.setWrapText(true);
 
+        Label nameLabel = new Label(student.getFullName()+"\nid: "+ student.getStudentId());
+        nameLabel.setFont(Font.font("Arial", 13));
+        nameLabel.setTextFill(Color.LIGHTGRAY);
+
         VBox header = new VBox(6);
-        header.getChildren().addAll(title);
+        header.getChildren().addAll(title, nameLabel);
         ///clean up
 
         // ── Close button ───────────────────────────────────────
@@ -72,26 +67,27 @@ public class ScheduleDialog {
                         "-fx-cursor: hand;" +
                         "-fx-background-radius: 4px;"
         );
-        closeBtn.setOnAction(e -> dialog.close());
+        closeBtn.setOnAction(e -> {
+            dialog.close();
+        });
 
         HBox buttonRow = new HBox();
         buttonRow.setAlignment(Pos.CENTER_RIGHT);
         buttonRow.getChildren().add(closeBtn);
 
         // ── Assemble content ───────────────────────────────────
-        ScheduleIterator semesterIterator = studentSchedule.createBySemesterIterator();
         VBox content = new VBox(16);
         content.setPadding(new Insets(28));
         content.setStyle("-fx-background-color: #1E1E2E;");
         content.getChildren().addAll(header, new Separator());
-        while (semesterIterator.hasNext()){
-            Section s = semesterIterator.next();
+        while (iterator.hasNext()){
+            Section s = iterator.next();
             content.getChildren().add(sectionHeading(s.getCourseCode()+" "+s.getCourseName()));
             content.getChildren().addAll(detailRow("Semester:", s.getSemester()), detailRow("Status:", s.getStatus()),
                     detailRow("Meeting Information:", s.getDeliveryMode()+" "+s.getDayOfWeek()+" "+s.getStartTime() +" Room: "+s.getRoom()));
             content.getChildren().add(new Separator());
         }
-        semesterIterator.reset();
+        iterator.reset();
 
         ScrollPane scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);

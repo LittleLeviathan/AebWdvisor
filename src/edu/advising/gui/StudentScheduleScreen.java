@@ -1,14 +1,13 @@
 package edu.advising.gui;
 
 import edu.advising.BetterAdvisorApp;
-import edu.advising.iterator.ScheduleGenerator;
-import edu.advising.iterator.StudentSchedule;
+import edu.advising.iterator.*;
+import edu.advising.users.Student;
 import edu.advising.users.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -36,7 +35,7 @@ public class StudentScheduleScreen {
         subtitleLabel.setTextFill(Color.LIGHTGRAY);
 
         //
-        Button semesterBtn = new Button("By Semester");
+        Button semesterBtn = new Button("Sort by Semester");
         semesterBtn.setStyle(
                 "-fx-background-color: #4A90D9;" +
                         "-fx-text-fill: white;" +
@@ -44,40 +43,98 @@ public class StudentScheduleScreen {
                         "-fx-padding: 10px 20px;" +
                         "-fx-cursor: hand;"
         );
-
-        //
-        Button officialBtn = new Button("Request Official Transcript");
-        officialBtn.setStyle(
-                "-fx-background-color: #2E2E3E;" +
+        Button weeklyBtn = new Button("Sort by Day of the Week");
+        weeklyBtn.setStyle(
+                "-fx-background-color: #4A90D9;" +
                         "-fx-text-fill: white;" +
                         "-fx-font-size: 13px;" +
                         "-fx-padding: 10px 20px;" +
                         "-fx-cursor: hand;"
         );
 
-        // Status label for feedback
-        Label statusLabel = new Label("");
-        statusLabel.setTextFill(Color.LIGHTGREEN);
-        statusLabel.setFont(Font.font("Arial", 13));
+        SplitMenuButton statusBtn = new SplitMenuButton();
+        statusBtn.setText("Sort by Status");
+        MenuItem open = new MenuItem("OPEN");
+        MenuItem closed = new MenuItem("CLOSED");
+        statusBtn.getItems().addAll(open, closed);
+        statusBtn.setStyle(
+                "-fx-background-color: #4A90D9;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-cursor: hand;"
+        );
 
-        // Placeholder for  content
-        Label placeholderLabel = new Label("Your class schedule will appear here.");
-        placeholderLabel.setTextFill(Color.GRAY);
-        placeholderLabel.setFont(Font.font("Arial", 13));
+        SplitMenuButton deliveryModeBtn = new SplitMenuButton();
+        deliveryModeBtn.setText("Sort by Delivery Mode");
+        MenuItem online = new MenuItem("ONLINE");
+        MenuItem inPerson = new MenuItem("IN_PERSON");
+        MenuItem hybrid = new MenuItem("HYBRID");
+        deliveryModeBtn.getItems().addAll(online, inPerson, hybrid);
+        deliveryModeBtn.setStyle(
+                "-fx-background-color: #4A90D9;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-cursor: hand;"
+        );
 
         // Button actions
         semesterBtn.setOnAction(e -> {
-            statusLabel.setText("Loading schedule...");
             Stage owner = (Stage) semesterBtn.getScene().getWindow();
             try {
-                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()));
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new BySemesterIterator(user.getSections()), (Student)user);
             } catch (SQLException ex) {
                 throw new RuntimeException(ex);
             }
         });
-
-        officialBtn.setOnAction(e -> {
-            statusLabel.setText("Official transcript request submitted.");
+        weeklyBtn.setOnAction(e -> {
+            Stage owner = (Stage) weeklyBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new WeeklyScheduleIterator(user.getSections()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        open.setOnAction(e -> {
+            Stage owner = (Stage) statusBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new ByStatusIterator(user.getSections(), open.getText()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        closed.setOnAction(e -> {
+            Stage owner = (Stage) statusBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new ByStatusIterator(user.getSections(), closed.getText()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        online.setOnAction(e -> {
+            Stage owner = (Stage) deliveryModeBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new ByDeliveryModeIterator(user.getSections(), online.getText()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        inPerson.setOnAction(e -> {
+            Stage owner = (Stage) deliveryModeBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new ByDeliveryModeIterator(user.getSections(), inPerson.getText()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        hybrid.setOnAction(e -> {
+            Stage owner = (Stage) deliveryModeBtn.getScene().getWindow();
+            try {
+                ScheduleDialog.show(owner, new StudentSchedule(user.getSections()), new ByDeliveryModeIterator(user.getSections(), hybrid.getText()), (Student)user);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
         });
 
         // Back button
@@ -104,7 +161,7 @@ public class StudentScheduleScreen {
         // Button row
         HBox buttonRow = new HBox(15);
         buttonRow.setAlignment(Pos.CENTER_LEFT);
-        buttonRow.getChildren().addAll(semesterBtn, officialBtn);
+        buttonRow.getChildren().addAll(semesterBtn, weeklyBtn, statusBtn, deliveryModeBtn);
 
         // Content area
         VBox contentArea = new VBox(20);
@@ -114,9 +171,7 @@ public class StudentScheduleScreen {
         contentArea.getChildren().addAll(
                 titleLabel,
                 subtitleLabel,
-                buttonRow,
-                statusLabel,
-                placeholderLabel
+                buttonRow
         );
 
         // Full layout

@@ -2,6 +2,7 @@ import edu.advising.commands.Enrollment;
 import edu.advising.commands.Section;
 import edu.advising.iterator.*;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class ClassScheduleIteratorTest {
     // ENTRY POINT
     // =========================================================================
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException {
         banner("ITERATOR PATTERN  |  BetterAdvisor Test Suite");
 
         testWeeklyIterator();
@@ -61,15 +62,15 @@ public class ClassScheduleIteratorTest {
     // GROUP 1 — WeeklyScheduleIterator
     // =========================================================================
 
-    private static void testWeeklyIterator() {
+    private static void testWeeklyIterator() throws SQLException {
         header("GROUP 1 — WeeklyScheduleIterator");
 
-        Enrollment friday    = buildEnrollment(1, "FA", 2025, "ONLINE",    "FRIDAY",    "10:00", "ENROLLED");
-        Enrollment monday    = buildEnrollment(2, "FA", 2025, "IN_PERSON", "MONDAY",    "09:00", "ENROLLED");
-        Enrollment wednesday = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "08:00", "ENROLLED");
-        Enrollment tuesday   = buildEnrollment(4, "FA", 2025, "ONLINE",    "TUESDAY",   "11:00", "ENROLLED");
+        Section friday    = buildEnrollment(1, "FA", 2025, "ONLINE",    "FRIDAY",    "10:00", "ENROLLED").getSection();
+        Section monday    = buildEnrollment(2, "FA", 2025, "IN_PERSON", "MONDAY",    "09:00", "ENROLLED").getSection();
+        Section wednesday = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "08:00", "ENROLLED").getSection();
+        Section tuesday   = buildEnrollment(4, "FA", 2025, "ONLINE",    "TUESDAY",   "11:00", "ENROLLED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(friday);
         list.add(monday);
         list.add(wednesday);
@@ -77,16 +78,16 @@ public class ClassScheduleIteratorTest {
 
         WeeklyScheduleIterator it = new WeeklyScheduleIterator(list);
 
-        Enrollment first  = it.next();
-        Enrollment second = it.next();
-        Enrollment third  = it.next();
-        Enrollment fourth = it.next();
+        Section first  = it.next();
+        Section second = it.next();
+        Section third  = it.next();
+        Section fourth = it.next();
 
         try {
-            String firstDay  = first.getSection()  != null ? first.getDayOfWeek()  : "";
-            String secondDay = second.getSection() != null ? second.getDayOfWeek() : "";
-            String thirdDay  = third.getSection()  != null ? third.getSection().getDayOfWeek()  : "";
-            String fourthDay = fourth.getSection() != null ? fourth.getSection().getDayOfWeek() : "";
+            String firstDay  = first  != null ? first.getDayOfWeek()  : "";
+            String secondDay = second != null ? second.getDayOfWeek() : "";
+            String thirdDay  = third  != null ? third.getDayOfWeek()  : "";
+            String fourthDay = fourth != null ? fourth.getDayOfWeek() : "";
             check("1.1  First enrollment is MONDAY",    "MONDAY".equals(firstDay));
             check("1.2  Second enrollment is TUESDAY",  "TUESDAY".equals(secondDay));
             check("1.3  Third enrollment is WEDNESDAY", "WEDNESDAY".equals(thirdDay));
@@ -96,17 +97,17 @@ public class ClassScheduleIteratorTest {
             failed += 4;
         }
 
-        Enrollment mondayLate  = buildEnrollment(5, "FA", 2025, "ONLINE", "MONDAY", "13:00", "ENROLLED");
-        Enrollment mondayEarly = buildEnrollment(6, "FA", 2025, "ONLINE", "MONDAY", "08:00", "ENROLLED");
+        Section mondayLate  = buildEnrollment(5, "FA", 2025, "ONLINE", "MONDAY", "13:00", "ENROLLED").getSection();
+        Section mondayEarly = buildEnrollment(6, "FA", 2025, "ONLINE", "MONDAY", "08:00", "ENROLLED").getSection();
 
-        List<Enrollment> sameDay = new ArrayList<>();
+        List<Section> sameDay = new ArrayList<>();
         sameDay.add(mondayLate);
         sameDay.add(mondayEarly);
 
         WeeklyScheduleIterator sameDayIt = new WeeklyScheduleIterator(sameDay);
-        Enrollment earlierClass = sameDayIt.next();
+        Section earlierClass = sameDayIt.next();
         try {
-            String earlierTime = earlierClass.getSection() != null ? earlierClass.getSection().getStartTime() : "";
+            String earlierTime = earlierClass != null ? earlierClass.getStartTime() : "";
             check("1.5  Earlier start time comes first on same day", "08:00".equals(earlierTime));
         } catch (Exception ex) {
             System.out.println("  ✗  GROUP 1.5 section lookup failed: " + ex.getMessage());
@@ -118,15 +119,15 @@ public class ClassScheduleIteratorTest {
     // GROUP 2 — BySemesterIterator
     // =========================================================================
 
-    private static void testBySemesterIterator() {
+    private static void testBySemesterIterator() throws SQLException {
         header("GROUP 2 — BySemesterIterator");
 
-        Enrollment fa2025 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY", "09:00", "ENROLLED");
-        Enrollment sp2025 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "MONDAY", "09:00", "ENROLLED");
-        Enrollment su2024 = buildEnrollment(3, "SU", 2024, "HYBRID",    "MONDAY", "09:00", "DROPPED");
-        Enrollment sp2024 = buildEnrollment(4, "SP", 2024, "ONLINE",    "MONDAY", "09:00", "ENROLLED");
+        Section fa2025 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY", "09:00", "ENROLLED").getSection();
+        Section sp2025 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "MONDAY", "09:00", "ENROLLED").getSection();
+        Section su2024 = buildEnrollment(3, "SU", 2024, "HYBRID",    "MONDAY", "09:00", "DROPPED").getSection();
+        Section sp2024 = buildEnrollment(4, "SP", 2024, "ONLINE",    "MONDAY", "09:00", "ENROLLED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(fa2025);
         list.add(sp2025);
         list.add(su2024);
@@ -134,16 +135,12 @@ public class ClassScheduleIteratorTest {
 
         BySemesterIterator it = new BySemesterIterator(list);
 
-        Enrollment first  = it.next();
-        Enrollment second = it.next();
-        Enrollment third  = it.next();
-        Enrollment fourth = it.next();
+        Section s1 = it.next();
+        Section s2 = it.next();
+        Section s3 = it.next();
+        Section s4 = it.next();
 
         try {
-            Section s1 = first.getSection();
-            Section s2 = second.getSection();
-            Section s3 = third.getSection();
-            Section s4 = fourth.getSection();
             check("2.1  First is SP2024",
                     s1 != null && "SP".equals(s1.getSemester()) && s1.getYear() == 2024);
             check("2.2  Second is SU2024",
@@ -162,15 +159,15 @@ public class ClassScheduleIteratorTest {
     // GROUP 3 — ByDeliveryModeIterator
     // =========================================================================
 
-    private static void testByDeliveryModeIterator() {
+    private static void testByDeliveryModeIterator() throws SQLException {
         header("GROUP 3 — ByDeliveryModeIterator");
 
-        Enrollment online1   = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",    "09:00", "ENROLLED");
-        Enrollment inPerson1 = buildEnrollment(2, "FA", 2025, "IN_PERSON", "TUESDAY",   "10:00", "ENROLLED");
-        Enrollment hybrid1   = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "11:00", "ENROLLED");
-        Enrollment online2   = buildEnrollment(4, "FA", 2025, "ONLINE",    "THURSDAY",  "12:00", "ENROLLED");
+        Section online1   = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",    "09:00", "ENROLLED").getSection();
+        Section inPerson1 = buildEnrollment(2, "FA", 2025, "IN_PERSON", "TUESDAY",   "10:00", "ENROLLED").getSection();
+        Section hybrid1   = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "11:00", "ENROLLED").getSection();
+        Section online2   = buildEnrollment(4, "FA", 2025, "ONLINE",    "THURSDAY",  "12:00", "ENROLLED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(online1);
         list.add(inPerson1);
         list.add(hybrid1);
@@ -204,15 +201,15 @@ public class ClassScheduleIteratorTest {
     // GROUP 4 — ByStatusIterator
     // =========================================================================
 
-    private static void testByStatusIterator() {
+    private static void testByStatusIterator() throws SQLException {
         header("GROUP 4 — ByStatusIterator");
 
-        Enrollment enrolled1  = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",    "09:00", "ENROLLED");
-        Enrollment dropped1   = buildEnrollment(2, "FA", 2025, "IN_PERSON", "TUESDAY",   "10:00", "DROPPED");
-        Enrollment withdrawn1 = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "11:00", "WITHDRAWN");
-        Enrollment enrolled2  = buildEnrollment(4, "SP", 2025, "ONLINE",    "THURSDAY",  "12:00", "ENROLLED");
+        Section enrolled1  = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",    "09:00", "ENROLLED").getSection();
+        Section dropped1   = buildEnrollment(2, "FA", 2025, "IN_PERSON", "TUESDAY",   "10:00", "DROPPED").getSection();
+        Section withdrawn1 = buildEnrollment(3, "FA", 2025, "HYBRID",    "WEDNESDAY", "11:00", "WITHDRAWN").getSection();
+        Section enrolled2  = buildEnrollment(4, "SP", 2025, "ONLINE",    "THURSDAY",  "12:00", "ENROLLED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(enrolled1);
         list.add(dropped1);
         list.add(withdrawn1);
@@ -246,13 +243,13 @@ public class ClassScheduleIteratorTest {
     // GROUP 5 — hasNext() and reset() behavior
     // =========================================================================
 
-    private static void testHasNextAndReset() {
+    private static void testHasNextAndReset() throws SQLException {
         header("GROUP 5 — hasNext() and reset()");
 
-        Enrollment e1 = buildEnrollment(1, "FA", 2025, "ONLINE", "MONDAY",  "09:00", "ENROLLED");
-        Enrollment e2 = buildEnrollment(2, "FA", 2025, "ONLINE", "TUESDAY", "10:00", "ENROLLED");
+        Section e1 = buildEnrollment(1, "FA", 2025, "ONLINE", "MONDAY",  "09:00", "ENROLLED").getSection();
+        Section e2 = buildEnrollment(2, "FA", 2025, "ONLINE", "TUESDAY", "10:00", "ENROLLED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(e1);
         list.add(e2);
 
@@ -277,7 +274,7 @@ public class ClassScheduleIteratorTest {
     private static void testEmptyListEdgeCases() {
         header("GROUP 6 — Empty list edge cases");
 
-        List<Enrollment> empty = new ArrayList<>();
+        List<Section> empty = new ArrayList<>();
 
         WeeklyScheduleIterator weeklyIt = new WeeklyScheduleIterator(empty);
         check("6.1  WeeklyScheduleIterator hasNext() false on empty list", !weeklyIt.hasNext());
@@ -296,13 +293,13 @@ public class ClassScheduleIteratorTest {
     // GROUP 7 — StudentSchedule factory methods
     // =========================================================================
 
-    private static void testStudentScheduleFactory() {
+    private static void testStudentScheduleFactory() throws SQLException {
         header("GROUP 7 — StudentSchedule factory methods");
 
-        Enrollment e1 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",  "09:00", "ENROLLED");
-        Enrollment e2 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "TUESDAY", "10:00", "DROPPED");
+        Section e1 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY",  "09:00", "ENROLLED").getSection();
+        Section e2 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "TUESDAY", "10:00", "DROPPED").getSection();
 
-        List<Enrollment> list = new ArrayList<>();
+        List<Section> list = new ArrayList<>();
         list.add(e1);
         list.add(e2);
 
@@ -310,6 +307,7 @@ public class ClassScheduleIteratorTest {
 
         ScheduleIterator weeklyIt = schedule.createWeeklyIterator();
         check("7.1  createWeeklyIterator() returns a ScheduleIterator",    weeklyIt != null);
+        assert weeklyIt != null;
         check("7.2  createWeeklyIterator() hasNext() true with data",       weeklyIt.hasNext());
 
         ScheduleIterator semIt = schedule.createBySemesterIterator();

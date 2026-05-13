@@ -1,6 +1,11 @@
 package edu.advising.gui;
 
 import edu.advising.BetterAdvisorApp;
+import edu.advising.commands.Enrollment;
+import edu.advising.commands.Section;
+import edu.advising.core.DatabaseManager;
+import edu.advising.state.EnrollmentContext;
+import edu.advising.users.Student;
 import edu.advising.users.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -14,7 +19,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.sql.SQLException;
+
 public class StudentDashboardScreen {
+
+    public StudentDashboardScreen() throws SQLException {
+    }
 
     public static Scene getScene(User user) {
 
@@ -31,7 +41,7 @@ public class StudentDashboardScreen {
         Button registrationBtn = new Button("Registration");
         Button transcriptBtn = new Button("Transcript");
         Button logoutBtn = new Button("Logout");
-        Button scheduleBtn = new Button("My class schedule");
+        Button scheduleBtn = new Button("My Class Schedule");
 
         // Style the nav buttons
         String navButtonStyle =
@@ -63,6 +73,7 @@ public class StudentDashboardScreen {
         });
 
         scheduleBtn.setOnAction(e ->{
+
             BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "SCHEDULE");
         });
 
@@ -96,5 +107,33 @@ public class StudentDashboardScreen {
         layout.getChildren().addAll(navBar, contentArea);
 
         return new Scene(layout, 900, 650);
+    }
+
+
+
+    private static void testEnrollments(User user) throws SQLException, IllegalAccessException {
+        Enrollment fa2025 = buildEnrollment(1, "FA", 2025, "ONLINE",    "MONDAY", "09:00", "ENROLLED", user);
+        Enrollment sp2025 = buildEnrollment(2, "SP", 2025, "IN_PERSON", "TUESDAY", "13:00", "ENROLLED", user);
+        Enrollment su2024 = buildEnrollment(3, "SU", 2024, "HYBRID",    "WEDNESDAY", "10:00", "DROPPED", user);
+        Enrollment sp2024 = buildEnrollment(4, "SP", 2024, "ONLINE",    "THURSDAY", "08:00", "ENROLLED", user);
+        DatabaseManager.getInstance().upsert(fa2025);
+        DatabaseManager.getInstance().upsert(sp2025);
+        DatabaseManager.getInstance().upsert(su2024);
+        DatabaseManager.getInstance().upsert(sp2024);
+    }
+
+    private static Enrollment buildEnrollment(int id, String semester, int year,
+                                              String deliveryMode, String dayOfWeek,
+                                              String startTime, String status, User user) {
+        Section section = new Section("S" + id, semester, year, 30);
+        section.setDeliveryMode(deliveryMode);
+        section.setDayOfWeek(dayOfWeek);
+        section.setStartTime(startTime);
+
+        Enrollment e = new Enrollment(user.getId(), section.getId());
+        e.setId(id);
+        e.setStatus(status);
+        e.setSection(section);
+        return e;
     }
 }
