@@ -1,23 +1,24 @@
 package edu.advising.iterator;
 
 import edu.advising.commands.Enrollment;
+import edu.advising.commands.Section;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ByStatusIterator implements ScheduleIterator {
 
-    private List<Enrollment> enrollments;
+    private List<Section> sections;
     private String status;
     private int position;
 
-    public ByStatusIterator(List<Enrollment> enrollments, String status) {
+    public ByStatusIterator(List<Section> enrollments, String status) {
         this.status = status;
-        this.enrollments = new ArrayList<>();
-        for (Enrollment e : enrollments) {
-            if (e.getStatus() != null && status != null
-                    && status.equalsIgnoreCase(e.getStatus())) {
-                this.enrollments.add(e);
+        this.sections = new ArrayList<>();
+        for (Section s : sections) {
+            if (s.getStatus() != null && status != null
+                    && status.equalsIgnoreCase(s.getStatus())) {
+                this.sections.add(s);
             }
         }
         this.position = 0;
@@ -25,14 +26,14 @@ public class ByStatusIterator implements ScheduleIterator {
 
     @Override
     public boolean hasNext() {
-        return position < enrollments.size();
+        return position < sections.size();
     }
 
     @Override
-    public Enrollment next() {
-        Enrollment e = enrollments.get(position);
+    public Section next() {
+        Section s = sections.get(position);
         position++;
-        return e;
+        return s;
     }
 
     @Override

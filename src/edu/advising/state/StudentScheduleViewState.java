@@ -18,17 +18,25 @@ public class StudentScheduleViewState implements ViewState {
 
     @Override
     public void render() {
-
+        System.out.println("=== Class Schedule ===");
+        System.out.println("Available actions:");
     }
 
     @Override
     public void handleAction(ViewContext context, String action, String... args) {
-
+        switch (action) {
+            case "BACK":
+                context.back();
+                break;
+            case "LOGOUT":
+                context.logout();
+                break;
+        }
     }
 
     @Override
     public String getViewName() {
-        return "TRANSCRIPT";
+        return "SCHEDULE";
     }
 
     @Override

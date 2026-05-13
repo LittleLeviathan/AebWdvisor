@@ -83,8 +83,8 @@ public class ClassScheduleIteratorTest {
         Enrollment fourth = it.next();
 
         try {
-            String firstDay  = first.getSection()  != null ? first.getSection().getDayOfWeek()  : "";
-            String secondDay = second.getSection() != null ? second.getSection().getDayOfWeek() : "";
+            String firstDay  = first.getSection()  != null ? first.getDayOfWeek()  : "";
+            String secondDay = second.getSection() != null ? second.getDayOfWeek() : "";
             String thirdDay  = third.getSection()  != null ? third.getSection().getDayOfWeek()  : "";
             String fourthDay = fourth.getSection() != null ? fourth.getSection().getDayOfWeek() : "";
             check("1.1  First enrollment is MONDAY",    "MONDAY".equals(firstDay));

@@ -31,6 +31,7 @@ public class StudentDashboardScreen {
         Button registrationBtn = new Button("Registration");
         Button transcriptBtn = new Button("Transcript");
         Button logoutBtn = new Button("Logout");
+        Button scheduleBtn = new Button("My class schedule");
 
         // Style the nav buttons
         String navButtonStyle =
@@ -42,6 +43,7 @@ public class StudentDashboardScreen {
 
         registrationBtn.setStyle(navButtonStyle);
         transcriptBtn.setStyle(navButtonStyle);
+        scheduleBtn.setStyle(navButtonStyle);
 
         logoutBtn.setStyle(
                 "-fx-background-color: #8B0000;" +
@@ -60,6 +62,10 @@ public class StudentDashboardScreen {
             BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "TRANSCRIPT");
         });
 
+        scheduleBtn.setOnAction(e ->{
+            BetterAdvisorApp.viewContext.handleAction("NAVIGATE", "SCHEDULE");
+        });
+
         logoutBtn.setOnAction(e -> {
             BetterAdvisorApp.viewContext.logout();
         });
@@ -69,7 +75,7 @@ public class StudentDashboardScreen {
         navBar.setPadding(new Insets(15));
         navBar.setAlignment(Pos.CENTER_LEFT);
         navBar.setStyle("-fx-background-color: #12121E;");
-        navBar.getChildren().addAll(registrationBtn, transcriptBtn, logoutBtn);
+        navBar.getChildren().addAll(registrationBtn, transcriptBtn, scheduleBtn, logoutBtn);
 
         // Main content area
         Label contentLabel = new Label("Student Dashboard");

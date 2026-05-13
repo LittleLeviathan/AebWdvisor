@@ -21,11 +21,14 @@ package edu.advising.users;
 //   updated_at is already in the CREATE TABLE definition — no migration needed for that.
 // ============================================================================
 
+import edu.advising.commands.Section;
 import edu.advising.core.Column;
 import edu.advising.core.Id;
 import edu.advising.core.Table;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * User - Base class for all user types in the CRAdvisor system.
@@ -121,6 +124,10 @@ public class User {
     public LocalDateTime getLastLogin()  { return lastLogin; }
     public String getPhone()     { return phone; }      // ★ WEEK 5
     public LocalDateTime getUpdatedAt() { return updatedAt; } // ★ WEEK 5
+
+    public List<Section> getSections() throws SQLException {
+        return null;
+    }
 
     public String getFullName() {
         return firstName + " " + lastName;

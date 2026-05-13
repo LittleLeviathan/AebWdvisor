@@ -1,9 +1,9 @@
 package edu.advising.iterator;
 
-import edu.advising.commands.Enrollment;
+import edu.advising.commands.Section;
 
 public interface ScheduleIterator {
     boolean hasNext();
-    Enrollment next();
+    Section next();
     void reset();
 }
