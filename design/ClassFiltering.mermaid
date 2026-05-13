@@ -1,0 +1,25 @@
+---
+title: "Class Filtering (Week 13)"
+---
+classDiagram
+
+    class Course {
+        -String code
+        -String name
+        -String level
+        -int departmentId
+    }
+
+    class CourseFilter {
+        +filterByCode(List~Course~, String) List~Course~
+        +filterByLevel(List~Course~, String) List~Course~
+        +filterByDepartment(List~Course~, int) List~Course~
+    }
+
+    class RegistrationScreen {
+        -TextField searchField
+        -onSearch(String) void
+    }
+
+    CourseFilter --> Course : filters
+    RegistrationScreen --> CourseFilter : uses

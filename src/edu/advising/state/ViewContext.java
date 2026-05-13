@@ -81,8 +81,8 @@ public class ViewContext {
         currentState = previous;
         currentState.enter(this);
         currentState.render();
+        updateScene(currentState);
     }
-
     /**
      * Logs the user out and returns to GuestViewState
      * - Set currentUser to null
