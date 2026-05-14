@@ -79,6 +79,15 @@ public class StudentScheduleScreen {
                         "-fx-cursor: hand;"
         );
 
+        Button logoutBtn = new Button("Logout");
+        logoutBtn.setStyle(
+                "-fx-background-color: #8B0000;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-padding: 10px 20px;" +
+                        "-fx-cursor: hand;"
+        );
+
         // Button actions
         semesterBtn.setOnAction(e -> {
             Stage owner = (Stage) semesterBtn.getScene().getWindow();
@@ -136,6 +145,8 @@ public class StudentScheduleScreen {
                 throw new RuntimeException(ex);
             }
         });
+
+        logoutBtn.setOnAction(event -> {BetterAdvisorApp.viewContext.logout();});
 
         // Back button
         Button backBtn = new Button("Back to Dashboard");

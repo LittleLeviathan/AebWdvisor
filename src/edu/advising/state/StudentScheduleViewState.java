@@ -18,8 +18,8 @@ public class StudentScheduleViewState implements ViewState {
 
     @Override
     public void render() {
-        System.out.println("=== Class Schedule ===");
-        System.out.println("Available actions:");
+        System.out.println("=== View Class Schedule ===");
+        System.out.println("Available actions: SORT BY SEMESTER, SORT BY DAY, SORT BY STATUS, SORT BY DELIVERY MODE, BACK, LOGOUT");
     }
 
     @Override
@@ -32,6 +32,7 @@ public class StudentScheduleViewState implements ViewState {
                 context.logout();
                 break;
         }
+
     }
 
     @Override
