@@ -5,7 +5,6 @@ import edu.advising.commands.RegisterCommand;
 import edu.advising.commands.Section;
 import edu.advising.commands.WaitlistEntry;
 import edu.advising.notifications.ObservableStudent;
-import edu.advising.users.Student;
 
 import java.sql.SQLException;
 
@@ -34,7 +33,10 @@ public class OfferedWaitlistState implements WaitlistState {
     }
 
     @Override
-    public void accept(WaitlistContext context) {
+    public void accept(WaitlistContext context) {}
+
+    @Override
+    public void accept(WaitlistContext context, CommandExecutor executor) {
         WaitlistEntry entry = context.entry;
         Section section = null;
         try {
@@ -50,7 +52,7 @@ public class OfferedWaitlistState implements WaitlistState {
         }
         synchronized (this){
             if (section.hasCapacity()) {
-                CommandExecutor.getInstance().execute(new RegisterCommand(student, section));
+                executor.execute(new RegisterCommand(student, section));
                 context.setState(EnrolledFromWaitlistState.getInstance());
                 System.out.println("Successfully Enrolled from waitlist.");
             }

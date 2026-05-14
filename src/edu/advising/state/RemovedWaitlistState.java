@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import edu.advising.commands.CommandExecutor;
+
 public class RemovedWaitlistState implements WaitlistState {
 
     private static final RemovedWaitlistState INSTANCE = new RemovedWaitlistState();
@@ -28,6 +30,9 @@ public class RemovedWaitlistState implements WaitlistState {
     public void accept(WaitlistContext context) {
         System.out.println("ERROR: Cannot accept seat offer, already removed from waitlist.");
     }
+
+    @Override
+    public void accept(WaitlistContext context, CommandExecutor executor) {}
 
     @Override
     public void decline(WaitlistContext context) {

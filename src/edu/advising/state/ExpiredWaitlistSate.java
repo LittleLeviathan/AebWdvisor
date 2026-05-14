@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import edu.advising.commands.CommandExecutor;
+
 public class ExpiredWaitlistSate implements WaitlistState {
 
     private static final ExpiredWaitlistSate INSTANCE = new ExpiredWaitlistSate();
@@ -28,6 +30,9 @@ public class ExpiredWaitlistSate implements WaitlistState {
     public void accept(WaitlistContext context) {
         System.out.println("ERROR: Cannot accept seat offer, window to register has already expired.");
     }
+
+    @Override
+    public void accept(WaitlistContext context, CommandExecutor executor) {}
 
     @Override
     public void decline(WaitlistContext context) {

@@ -1,5 +1,7 @@
 package edu.advising.state;
 
+import edu.advising.commands.CommandExecutor;
+
 public class EnrolledFromWaitlistState implements WaitlistState {
 
     private static final EnrolledFromWaitlistState INSTANCE = new EnrolledFromWaitlistState();
@@ -28,6 +30,9 @@ public class EnrolledFromWaitlistState implements WaitlistState {
     public void accept(WaitlistContext context) {
         System.out.println("ERROR: Cannot accept seat offer, already enrolled for this section.");
     }
+
+    @Override
+    public void accept(WaitlistContext context, CommandExecutor executor) {}
 
     @Override
     public void decline(WaitlistContext context) {
