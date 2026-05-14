@@ -151,6 +151,9 @@ public class ViewContext {
             case "TRANSCRIPT":
                 finalScene = edu.advising.gui.TranscriptScreen.getScene(currentUser);
                 break;
+            case "SCHEDULE":
+                finalScene = edu.advising.gui.StudentScheduleScreen.getScene(currentUser);
+                break;
             case "PERMISSION_MANAGEMENT":
                 finalScene = edu.advising.gui.PermissionManagementScreen.getScene(currentUser);
                 break;

@@ -1,0 +1,82 @@
+classDiagram
+    class ScheduleIterator {
+        <<interface>>
+        +hasNext() boolean
+        +next() Enrollment
+        +reset() void
+    }
+
+    class ScheduleCollection {
+        <<interface>>
+        +createWeeklyIterator() ScheduleIterator
+        +createBySemesterIterator() ScheduleIterator
+        +createByDeliveryModeIterator(mode String) ScheduleIterator
+        +createByStatusIterator(status String) ScheduleIterator
+    }
+
+    class StudentSchedule {
+        -enrollments List~Enrollment~
+        +StudentSchedule(enrollments List~Enrollment~)
+        +createWeeklyIterator() ScheduleIterator
+        +createBySemesterIterator() ScheduleIterator
+        +createByDeliveryModeIterator(mode String) ScheduleIterator
+        +createByStatusIterator(status String) ScheduleIterator
+    }
+
+    class WeeklyScheduleIterator {
+        -enrollments List~Enrollment~
+        -position int
+        +hasNext() boolean
+        +next() Enrollment
+        +reset() void
+    }
+
+    class BySemesterIterator {
+        -enrollments List~Enrollment~
+        -position int
+        +hasNext() boolean
+        +next() Enrollment
+        +reset() void
+    }
+
+    class ByDeliveryModeIterator {
+        -enrollments List~Enrollment~
+        -mode String
+        -position int
+        +hasNext() boolean
+        +next() Enrollment
+        +reset() void
+    }
+
+    class ByStatusIterator {
+        -enrollments List~Enrollment~
+        -status String
+        -position int
+        +hasNext() boolean
+        +next() Enrollment
+        +reset() void
+    }
+
+    class Enrollment {
+        -studentId int
+        -sectionId int
+        -status String
+        -enrollmentDate LocalDateTime
+        +getStatus() String
+        +getSectionId() int
+        +getSection() Section
+    }
+
+    ScheduleCollection <|.. StudentSchedule : implements
+    ScheduleIterator <|.. WeeklyScheduleIterator : implements
+    ScheduleIterator <|.. BySemesterIterator : implements
+    ScheduleIterator <|.. ByDeliveryModeIterator : implements
+    ScheduleIterator <|.. ByStatusIterator : implements
+    StudentSchedule --> WeeklyScheduleIterator : creates
+    StudentSchedule --> BySemesterIterator : creates
+    StudentSchedule --> ByDeliveryModeIterator : creates
+    StudentSchedule --> ByStatusIterator : creates
+    WeeklyScheduleIterator --> Enrollment : iterates
+    BySemesterIterator --> Enrollment : iterates
+    ByDeliveryModeIterator --> Enrollment : iterates
+    ByStatusIterator --> Enrollment : iterates

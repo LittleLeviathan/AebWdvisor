@@ -85,6 +85,16 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <id>run-iterator-test</id>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>ClassScheduleIteratorTest</mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>run-view-navigation-test</id>
                         <goals>
                             <goal>java</goal>

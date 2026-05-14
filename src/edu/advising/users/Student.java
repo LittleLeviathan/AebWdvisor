@@ -1,5 +1,6 @@
 package edu.advising.users;
 
+import edu.advising.commands.Enrollment;
 import edu.advising.commands.Section;
 import edu.advising.commands.WaitlistEntry;
 import edu.advising.core.*;
